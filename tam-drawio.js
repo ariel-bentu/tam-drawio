@@ -56,13 +56,13 @@ Draw.loadPlugin(function (ui) {
         mxCodecRegistry.register(codec);
     };
 
-    opmStateHandler = function (state) {
+    tamStateHandler = function (state) {
         mxVertexHandler.apply(this, arguments);
     };
-    opmStateHandler.prototype = new mxVertexHandler();
-    opmStateHandler.prototype.constructor = opmStateHandler;
-    opmStateHandler.prototype.domNode = null;
-    opmStateHandler.prototype.init = function () {
+    tamStateHandler.prototype = new mxVertexHandler();
+    tamStateHandler.prototype.constructor = tamStateHandler;
+    tamStateHandler.prototype.domNode = null;
+    tamStateHandler.prototype.init = function () {
         mxVertexHandler.prototype.init.apply(this, arguments);
         this.domNode = document.createElement('div');
         this.domNode.style.position = 'absolute';
@@ -78,18 +78,18 @@ Draw.loadPlugin(function (ui) {
         this.graph.container.appendChild(this.domNode);
         this.redrawTools();
     };
-    opmStateHandler.prototype.redraw = function () {
+    tamStateHandler.prototype.redraw = function () {
         mxVertexHandler.prototype.redraw.apply(this);
         this.redrawTools();
     };
-    opmStateHandler.prototype.redrawTools = function () {
+    tamStateHandler.prototype.redrawTools = function () {
         if (this.state !== null && this.domNode !== null) {
             var dy = (mxClient.IS_VML && document.compatMode === 'CSS1Compat') ? 20 : 4;
             this.domNode.style.left = (this.state.x + this.state.width - this.domNode.children.length * 14) + 'px';
             this.domNode.style.top = (this.state.y + this.state.height + dy) + 'px';
         }
     };
-    opmStateHandler.prototype.destroy = function (sender, me) {
+    tamStateHandler.prototype.destroy = function (sender, me) {
         mxVertexHandler.prototype.destroy.apply(this, arguments);
         if (this.domNode !== null) {
             this.domNode.parentNode.removeChild(this.domNode);
@@ -101,7 +101,7 @@ Draw.loadPlugin(function (ui) {
 
     useRelationshipNoCurve = function () {
     };
-    useRelationshipNoCurve.prototype.handler = opmStateHandler;
+    useRelationshipNoCurve.prototype.handler = tamStateHandler;
     useRelationshipNoCurve.prototype.create = function () {
         return getUseArrow('endArrow=none;html=1;',
             { x: 0, y: 0 },
@@ -113,7 +113,7 @@ Draw.loadPlugin(function (ui) {
 
     useRelationshipCurveV = function () {
     };
-    useRelationshipCurveV.prototype.handler = opmStateHandler;
+    useRelationshipCurveV.prototype.handler = tamStateHandler;
     useRelationshipCurveV.prototype.create = function () {
         return getUseArrow('edgeStyle=elbowEdgeStyle;elbow=horizontal;endArrow=none;html=1;',
             { x: 0, y: 0 },
@@ -124,7 +124,7 @@ Draw.loadPlugin(function (ui) {
 
     useRelationshipCurveH = function () {
     };
-    useRelationshipCurveH.prototype.handler = opmStateHandler;
+    useRelationshipCurveH.prototype.handler = tamStateHandler;
     useRelationshipCurveH.prototype.create = function () {
         return getUseArrow('edgeStyle=elbowEdgeStyle;elbow=vertical;endArrow=none;html=1;',
             { x: 0, y: 0 },
@@ -267,27 +267,8 @@ Draw.loadPlugin(function (ui) {
     var elt = ui.toolbar.addItem('', 'flipUse');
 
     // Cannot use built-in sprites
-    elt.firstChild.style.backgroundImage = 'url(https://www.draw.io/images/logo-small.gif)';
+    elt.firstChild.style.backgroundImage = 'url(https://github.com/ariel-bentu/tam-drawio/blob/main/resources/swap.png)';
     elt.firstChild.style.backgroundPosition = '2px 3px';
 
 
-
-    // Add custom handler-code for the event of data-editor instanzing to provide a custom data-editor dialog.
-    /*origGraphCreateHander = ui.editor.graph.createHandler;
-     
-       ui.editor.graph.createHandler = function (state) {
-        console.log(state.cell);
-        console.log(tamUtils.isRelationship(state.cell));
-        console.log(this);
-        if (state !== null && (this.getSelectionCells().length === 1) && tamUtils.is(state.cell) && state.cell.c4.handler
-            && !tamUtils.isRelationship(state.cell) 
-            && !tamUtils.isRelationship2(state.cell)
-            && !tamUtils.isRelationship3(state.cell)
-            && !tamUtils.isRelationship4(state.cell)
-            && !tamUtils.isRelationship5(state.cell)
-            && !tamUtils.isRelationship6(state.cell)) {
-            return new state.cell.c4.handler(state);
-        }  
-        return origGraphCreateHander.apply(this, arguments);
-    };*/
 });
