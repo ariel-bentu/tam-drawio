@@ -49,49 +49,6 @@ Draw.loadPlugin(function (ui) {
     };
 
 
-
-    useRelationshipNoCurveH = function () {
-    };
-    useRelationshipNoCurveH.prototype.create = function () {
-        return getUseArrow('endArrow=none;html=1;bendable=0;',
-            { x: 0, y: 0 },
-            { x: 160, y: 0 },
-            false);
-    };
-    tamUtils.registCodec(useRelationshipNoCurveH);
-
-    useRelationshipNoCurveV = function () {
-    };
-    useRelationshipNoCurveV.prototype.create = function () {
-        return getUseArrow('endArrow=none;html=1;bendable=0;',
-            { x: 0, y: 0 },
-            { x: 0, y: 160 },
-            true);
-    };
-    tamUtils.registCodec(useRelationshipNoCurveV);
-
-
-    useRelationshipCurveV = function () {
-    };
-    useRelationshipCurveV.prototype.create = function () {
-        return getUseArrow('edgeStyle=elbowEdgeStyle;elbow=horizontal;endArrow=none;html=1;bendable=0;',
-            { x: 0, y: 0 },
-            { x: 160, y: 100 },
-            true);
-    };
-    tamUtils.registCodec(useRelationshipCurveV);
-
-    useRelationshipCurveH = function () {
-    };
-    useRelationshipCurveH.prototype.create = function () {
-        return getUseArrow('edgeStyle=elbowEdgeStyle;elbow=vertical;endArrow=none;html=1;bendable=0;',
-            { x: 0, y: 0 },
-            { x: 160, y: 100 },
-            false);
-    };
-    tamUtils.registCodec(useRelationshipCurveH);
-
-
     storage = function () {
     };
     storage.prototype.create = function () {
@@ -113,84 +70,7 @@ Draw.loadPlugin(function (ui) {
     };
     tamUtils.registCodec(updateEdgeH);
 
-    const R_we = new mxPoint(-8, -30);
-    const R_ew = new mxPoint(8, -30);
-    const R_ns = new mxPoint(-30, -8);
-    const R_sn = new mxPoint(-30, 8);
-
-    const T_we = new mxPoint(5, -30);
-    const T_ew = new mxPoint(-5, -30);
-    const T_ns = new mxPoint(-30, 5)
-    const T_sn = new mxPoint(-30, -5);
-
-    function getRPoint(rotation) {
-        switch (rotation) {
-            case -90:
-            case 270:
-                return R_sn;
-            case 0:
-                return R_we;
-            case 90:
-                return R_ns
-            case 180:
-                return R_ew
-        }
-        return R_we;
-    }
-
-    function getTPoint(rotation) {
-        switch (rotation) {
-            case -90:
-            case 270:
-                return T_sn;
-            case 0:
-                return T_we;
-            case 90:
-                return T_ns
-            case 180:
-                return T_ew
-        }
-        return T_we;
-    }
-
-    function getUseArrow(style, startPt, endPt, isVertical) {
-        var cell = new mxCell('', new mxGeometry(startPt.x, startPt.y, endPt.x, endPt.y), style);
-        cell.setValue(mxUtils.createXmlDocument().createElement('object'));
-        cell.geometry.setTerminalPoint(new mxPoint(startPt.x, startPt.y), true);
-        cell.geometry.setTerminalPoint(new mxPoint(endPt.x, endPt.y), false);
-        cell.geometry.relative = true;
-        cell.edge = true;
-        cell.value.setAttribute('tamType', 'use');
-
-
-        var classCell1 = new mxCell('', new mxGeometry(0, 0, 20, 20), 'ellipse;whiteSpace=wrap;html=1;aspect=fixed;deletable=0;movable=0;');
-        classCell1.vertex = true;
-        classCell1.connectable = false;
-        classCell1.geometry.relative = true;
-        classCell1.geometry.offset = new mxPoint(-10, -10);
-        cell.insert(classCell1);
-
-        var triangle = new mxCell('', new mxGeometry(0, 0, 10, 10), 'triangle;whiteSpace=wrap;html=1;fillColor=#000000;deletable=0;movable=0;' + (isVertical ? 'rotation=90;' : ''));
-        triangle.setValue(mxUtils.createXmlDocument().createElement('object'));
-        triangle.value.setAttribute('triangle', 'true');
-
-        triangle.vertex = true;
-        triangle.connectable = false;
-        triangle.geometry.relative = true;
-        triangle.geometry.offset = isVertical ? T_ns : T_we;
-        cell.insert(triangle);
-
-        var R = new mxCell('R', new mxGeometry(0, 0, 10, 10), 'text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;deletable=0;movable=0;');
-        R.vertex = true;
-        R.connectable = false;
-        R.geometry.relative = true;
-        R.geometry.offset = isVertical ? R_ns : R_we;
-        cell.insert(R);
-
-
-        return cell;
-    }
-
+    
     function getStorage() {
         var cell = new mxCell('', new mxGeometry(0, 0, 90, 40), 'rounded=1;whiteSpace=wrap;html=1;arcSize=60;');
         cell.vertex = true;
@@ -311,6 +191,122 @@ Draw.loadPlugin(function (ui) {
 
     mxCellRenderer.registerShape('updateedge', UpdateEdgeShape);
 
+    function UseEdge() {
+        mxConnector.call(this);
+    };
+    mxUtils.extend(UseEdge, mxConnector);
+
+    UseEdge.prototype.paintEdgeShape = function (c, pts, rounded) {
+        var sourceMarker = this.createMarker(c, pts, true);
+        var targetMarker = this.createMarker(c, pts, false);
+        var dashed = c.state.dashed;
+        var fixDash = c.state.fixDash;
+
+
+        c.setDashed(dashed, fixDash);
+        c.setShadow(false);
+
+        if (pts.length < 2) {
+            return;
+        }
+        let isVertical = mxUtils.getValue(this.style, 'vertical', false);
+
+        //draw-line (always straight)
+        mxPolyline.prototype.paintEdgeShape.apply(this, arguments);
+
+        //Draw circle
+        let i = pts.length > 3 ? 1 : 0
+
+        let x = pts[i].x + (pts[i + 1].x - pts[i].x) / 2;
+        let y = pts[i].y + (pts[i + 1].y - pts[i].y) / 2;
+
+        let fillColor = mxUtils.getValue(this.style, 'fillColor', '#FFFFFF');
+
+        c.setFillColor(fillColor)
+        c.ellipse(x - 10, y - 10, 20, 20);
+        c.fillAndStroke();
+
+        //Draw triangle
+
+        let useSignPosition = mxUtils.getValue(this.style, 'useSignPosition', 'up');
+        let useSignDirection = mxUtils.getValue(this.style, 'useSignDirection', 'north');
+
+
+
+        let dx, dy;
+        let tpts, rpt
+
+        c.begin()
+        switch (useSignPosition) {
+            case 'down':
+                dy = 30;
+                dx = 0;
+                break;
+            case 'left':
+                dy = 0;
+                dx = -30;
+
+                break;
+            case 'right':
+                dy = 0;
+                dx = -30;
+                break;
+            case 'up':
+            default:
+                dy = -30;
+                dx = 0;
+        }
+        switch (useSignDirection) {
+            case 'north':
+                dy += -5;
+                tpts = [[-5,0],[0,-10],[5,0]];
+                rpt = [-5, 10]
+                break;
+            case 'south':
+                dy += 5;
+                tpts = [[-5,0],[0,10],[5,0]];
+                rpt = [-5, -20]
+                break;
+            case 'west':
+                dx += -5;
+                tpts = [[0,-5],[-10,0],[0,5]];
+                rpt = [10, -5]
+                break;
+            case 'east':
+            default:
+                dx += 5;
+                tpts = [[0,-5],[10,0],[0,5]];
+                rpt = [-20, -5]
+        }
+        c.translate(x + dx, y + dy);
+
+        c.moveTo(tpts[0][0], tpts[0][1]);
+
+        c.lineTo(tpts[1][0], tpts[1][1]);
+        c.lineTo(tpts[2][0], tpts[2][1]);
+        c.lineTo(tpts[0][0], tpts[0][1]);
+        c.close();
+        c.end();
+        c.fillAndStroke();
+
+        //Output the R
+
+        c.text(rpt[0], rpt[1], 10, 10, "R");
+
+
+        if (sourceMarker != null) {
+            sourceMarker();
+        }
+
+        if (targetMarker != null) {
+            targetMarker();
+        }
+
+
+    };
+
+    mxCellRenderer.registerShape('useedge', UseEdge);
+
 
     function Dot3() {
         mxCylinder.call(this);
@@ -334,7 +330,7 @@ Draw.loadPlugin(function (ui) {
         c.ellipse(x1 + dx, y1 + dy, radius, radius);
         c.fillAndStroke();
 
-        c.ellipse(x1 + 2*dx , y1 + 2* dy, radius, radius);
+        c.ellipse(x1 + 2 * dx, y1 + 2 * dy, radius, radius);
         c.fillAndStroke();
 
     };
@@ -348,15 +344,19 @@ Draw.loadPlugin(function (ui) {
     // Adds custom sidebar entry
     ui.sidebar.addPalette(sidebar_id, sidebar_title, true, function (content) {
 
-        content.appendChild(ui.sidebar.createEdgeTemplateFromCells([useRelationshipNoCurveH.prototype.create()], 160, 0, 'Use straight horizontal '));
-        content.appendChild(ui.sidebar.createEdgeTemplateFromCells([useRelationshipNoCurveV.prototype.create()], 160, 0, 'Use straight vertical '));
-        content.appendChild(ui.sidebar.createEdgeTemplateFromCells([useRelationshipCurveV.prototype.create()], 160, 0, 'Use curved vertical'));
-        content.appendChild(ui.sidebar.createEdgeTemplateFromCells([useRelationshipCurveH.prototype.create()], 160, 0, 'Use curved horizontal'));
+        content.appendChild(ui.sidebar.createEdgeTemplate('shape=useedge;vertical=true;endArrow=none;fillColor=#FFFFFF;useSignPosition=left;useSignDirection=south;', 0, 160, ''));
+        content.appendChild(ui.sidebar.createEdgeTemplate('shape=useedge;endArrow=none;fillColor=#FFFFFF;useSignPosition=up;useSignDirection=east;', 160, 0, ''));
+        content.appendChild(ui.sidebar.createEdgeTemplate('shape=useedge;vertical=true;edgeStyle=elbowEdgeStyle;elbow=vertical;endArrow=none;fillColor=#FFFFFF;useSignPosition=up;useSignDirection=east;', 70, 160, ''));
+        content.appendChild(ui.sidebar.createEdgeTemplate('shape=useedge;edgeStyle=elbowEdgeStyle;elbow=horizontal;endArrow=none;fillColor=#FFFFFF;useSignPosition=left;useSignDirection=south;', 160, 70, ''));
         content.appendChild(ui.sidebar.createVertexTemplate('rounded=1;whiteSpace=wrap;html=1;arcSize=60;', 90, 40, ''));
         content.appendChild(ui.sidebar.createVertexTemplate('shape=dot3;vertical=true;fillColor=#000000;connectable=0;', 15, 55, ''));
         content.appendChild(ui.sidebar.createVertexTemplate('shape=dot3;fillColor=#000000;connectable=0;', 55, 15, ''));
         content.appendChild(ui.sidebar.createEdgeTemplateFromCells([updateEdgeV.prototype.create()], 160, 0, 'Update line vertical'));
         content.appendChild(ui.sidebar.createEdgeTemplateFromCells([updateEdgeH.prototype.create()], 160, 0, 'Update line horizontal'));
+        content.appendChild(ui.sidebar.createEdgeTemplate('shape=useedge;vertical=true;endArrow=none;fillColor=#FFFFFF;useSignPosition=left;useSignDirection=south;', 0, 160, ''));
+        content.appendChild(ui.sidebar.createEdgeTemplate('shape=useedge;endArrow=none;fillColor=#FFFFFF;useSignPosition=up;useSignDirection=east;', 160, 0, ''));
+        content.appendChild(ui.sidebar.createEdgeTemplate('shape=useedge;vertical=true;edgeStyle=elbowEdgeStyle;elbow=vertical;endArrow=none;fillColor=#FFFFFF;useSignPosition=up;useSignDirection=east;', 70, 160, ''));
+        content.appendChild(ui.sidebar.createEdgeTemplate('shape=useedge;edgeStyle=elbowEdgeStyle;elbow=horizontal;endArrow=none;fillColor=#FFFFFF;useSignPosition=left;useSignDirection=south;', 160, 70, ''));
     });
 
     mxResources.parse('flipUse=Flip Use Direction');
@@ -366,34 +366,30 @@ Draw.loadPlugin(function (ui) {
         if (!ui.editor.graph.isSelectionEmpty() && !ui.editor.graph.isEditing()) {
 
             let cells = ui.editor.graph.getSelectionCells();
-            if (tamUtils.isTam(cells[0])) {
-                let newRotation = 0;
 
-                //rotation of triangle
-                let triangle = cells[0].children[1];
-                let rotation = tamUtils.getStyleValue(triangle, 'rotation');
-
-                if (rotation == '') {
-                    newRotation = 180
-                } else {
-                    newRotation = parseInt(rotation) + 180;
-                    if (newRotation >= 360) {
-                        newRotation -= 360;
-                    }
+                let useSignDirection = tamUtils.getStyleValue(cells[0], 'useSignDirection');
+                if (useSignDirection == '') {
+                    mxUtils.alert("Not a Use-relationship element!");
+                    return;
                 }
 
+                switch (useSignDirection) {
+                    case 'north':
+                        useSignDirection = 'south'
+                        break;
+                    case 'south':
+                        useSignDirection = 'north'
+                        break;
+                    case 'west':
+                        useSignDirection = 'east'
+                        break;
+                    case 'east':
+                        useSignDirection = 'west'
+                }
 
-                triangle.setStyle(mxUtils.setStyle(triangle.style, 'rotation', newRotation));
-                triangle.geometry.offset = getTPoint(newRotation);
-                ui.editor.graph.refresh(triangle);
-
-                //location or "R"
-                let R = cells[0].children[2];
-                R.geometry.offset = getRPoint(newRotation);
-                ui.editor.graph.refresh(R);
-            } else {
-                mxUtils.alert("Not TAM element!");
-            }
+                cells[0].setStyle(mxUtils.setStyle(cells[0].style, 'useSignDirection', useSignDirection));
+                ui.editor.graph.refresh(cells[0]);
+            
         }
     });
 
