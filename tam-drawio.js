@@ -32,14 +32,6 @@ Draw.loadPlugin(function (ui) {
         return '';
     }
 
-    tamUtils.isTriangle = function (cell) {
-        return (cell &&
-            cell.hasOwnProperty('value') &&
-            (cell.value && cell.value.hasAttribute &&
-                cell.value.hasAttribute('triangle'))
-        );
-    };
-
     tamUtils.registCodec = function (func) {
         var codec = new mxObjectCodec(new func());
         codec.encode = function (enc, obj) {
@@ -56,61 +48,10 @@ Draw.loadPlugin(function (ui) {
         mxCodecRegistry.register(codec);
     };
 
-    tamStateHandler = function (state) {
-        mxVertexHandler.apply(this, arguments);
-    };
-    tamStateHandler.prototype = new mxEdgeHandler();
-    tamStateHandler.prototype.constructor = tamStateHandler;
-    tamStateHandler.prototype.domNode = null;
-
-    tamStateHandler.prototype.changePoints = function (edge,
-        points,
-        clone) {
-        mxUtils.alert(JSON.stringify(points));
-    }
-
-    tamStateHandler.prototype.init = function () {
-        /*
-        mxVertexHandler.prototype.init.apply(this, arguments);
-        this.domNode = document.createElement('div');
-        this.domNode.style.position = 'absolute';
-        this.domNode.style.whiteSpace = 'nowrap';
-        if (this.custom) this.custom.apply(this, arguments);
-        var img = tamUtils.createSettingsIcon();
-        mxEvent.addGestureListeners(img,
-            mxUtils.bind(this, function (evt) {
-                mxEvent.consume(evt);
-            })
-        );
-        this.domNode.appendChild(img);
-        this.graph.container.appendChild(this.domNode);
-        this.redrawTools();
-        */
-    };
-    tamStateHandler.prototype.redraw = function () {
-        mxVertexHandler.prototype.redraw.apply(this);
-        //this.redrawTools();
-    };
-    /*tamStateHandler.prototype.redrawTools = function () {
-        if (this.state !== null && this.domNode !== null) {
-            var dy = (mxClient.IS_VML && document.compatMode === 'CSS1Compat') ? 20 : 4;
-            this.domNode.style.left = (this.state.x + this.state.width - this.domNode.children.length * 14) + 'px';
-            this.domNode.style.top = (this.state.y + this.state.height + dy) + 'px';
-        }
-    };*/
-    tamStateHandler.prototype.destroy = function (sender, me) {
-        mxVertexHandler.prototype.destroy.apply(this, arguments);
-        if (this.domNode !== null) {
-            this.domNode.parentNode.removeChild(this.domNode);
-            this.domNode = null;
-        }
-    };
-
 
 
     useRelationshipNoCurveH = function () {
     };
-    useRelationshipNoCurveH.prototype.handler = tamStateHandler;
     useRelationshipNoCurveH.prototype.create = function () {
         return getUseArrow('endArrow=none;html=1;bendable=0;',
             { x: 0, y: 0 },
@@ -121,7 +62,6 @@ Draw.loadPlugin(function (ui) {
 
     useRelationshipNoCurveV = function () {
     };
-    useRelationshipNoCurveV.prototype.handler = tamStateHandler;
     useRelationshipNoCurveV.prototype.create = function () {
         return getUseArrow('endArrow=none;html=1;bendable=0;',
             { x: 0, y: 0 },
@@ -133,7 +73,6 @@ Draw.loadPlugin(function (ui) {
 
     useRelationshipCurveV = function () {
     };
-    useRelationshipCurveV.prototype.handler = tamStateHandler;
     useRelationshipCurveV.prototype.create = function () {
         return getUseArrow('edgeStyle=elbowEdgeStyle;elbow=horizontal;endArrow=none;html=1;bendable=0;',
             { x: 0, y: 0 },
@@ -144,7 +83,6 @@ Draw.loadPlugin(function (ui) {
 
     useRelationshipCurveH = function () {
     };
-    useRelationshipCurveH.prototype.handler = tamStateHandler;
     useRelationshipCurveH.prototype.create = function () {
         return getUseArrow('edgeStyle=elbowEdgeStyle;elbow=vertical;endArrow=none;html=1;bendable=0;',
             { x: 0, y: 0 },
@@ -156,7 +94,6 @@ Draw.loadPlugin(function (ui) {
 
     storage = function () {
     };
-    storage.prototype.handler = tamStateHandler;
     storage.prototype.create = function () {
         return getStorage();
     };
@@ -164,7 +101,6 @@ Draw.loadPlugin(function (ui) {
 
     updateEdgeV = function () {
     };
-    updateEdgeV.prototype.handler = tamStateHandler;
     updateEdgeV.prototype.create = function () {
         return getVerticalUpdateEdge(true);
     };
@@ -172,7 +108,6 @@ Draw.loadPlugin(function (ui) {
 
     updateEdgeH = function () {
     };
-    updateEdgeH.prototype.handler = tamStateHandler;
     updateEdgeH.prototype.create = function () {
         return getHorizontalUpdateEdge(false);
     };
@@ -388,12 +323,9 @@ Draw.loadPlugin(function (ui) {
         content.appendChild(ui.sidebar.createEdgeTemplateFromCells([useRelationshipNoCurveV.prototype.create()], 160, 0, 'Use straight vertical '));
         content.appendChild(ui.sidebar.createEdgeTemplateFromCells([useRelationshipCurveV.prototype.create()], 160, 0, 'Use curved vertical'));
         content.appendChild(ui.sidebar.createEdgeTemplateFromCells([useRelationshipCurveH.prototype.create()], 160, 0, 'Use curved horizontal'));
-        //content.appendChild(ui.sidebar.createEdgeTemplateFromCells([storage.prototype.create()], 160, 0, 'Storage'));
         content.appendChild(ui.sidebar.createVertexTemplate('rounded=1;whiteSpace=wrap;html=1;arcSize=60;', 90, 40, ''));
         content.appendChild(ui.sidebar.createEdgeTemplateFromCells([updateEdgeV.prototype.create()], 160, 0, 'Update line vertical'));
         content.appendChild(ui.sidebar.createEdgeTemplateFromCells([updateEdgeH.prototype.create()], 160, 0, 'Update line horizontal'));
-
-
     });
 
     mxResources.parse('flipUse=Flip Use Direction');
