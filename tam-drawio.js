@@ -312,6 +312,35 @@ Draw.loadPlugin(function (ui) {
     mxCellRenderer.registerShape('updateedge', UpdateEdgeShape);
 
 
+    function Dot3() {
+        mxCylinder.call(this);
+    };
+
+    mxUtils.extend(Dot3, mxCylinder);
+
+    Dot3.prototype.paintVertexShape = function (c, x, y, w, h) {
+        let isVertical = mxUtils.getValue(this.style, 'vertical', false);
+        let radius = isVertical ? 2 * w / 3 : 2 * h / 3;
+
+
+        let x1 = x + radius * .25;
+        let y1 = y + radius * .25;
+
+        let dx = isVertical ? 0 : radius * 1.8;
+        let dy = isVertical ? radius * 1.8 : 0;
+        c.ellipse(x1, y1, radius, radius);
+        c.fillAndStroke();
+
+        c.ellipse(x1 + dx, y1 + dy, radius, radius);
+        c.fillAndStroke();
+
+        c.ellipse(x1 + 2*dx , y1 + 2* dy, radius, radius);
+        c.fillAndStroke();
+
+    };
+
+    mxCellRenderer.registerShape('dot3', Dot3);
+
 
 
 
@@ -324,6 +353,8 @@ Draw.loadPlugin(function (ui) {
         content.appendChild(ui.sidebar.createEdgeTemplateFromCells([useRelationshipCurveV.prototype.create()], 160, 0, 'Use curved vertical'));
         content.appendChild(ui.sidebar.createEdgeTemplateFromCells([useRelationshipCurveH.prototype.create()], 160, 0, 'Use curved horizontal'));
         content.appendChild(ui.sidebar.createVertexTemplate('rounded=1;whiteSpace=wrap;html=1;arcSize=60;', 90, 40, ''));
+        content.appendChild(ui.sidebar.createVertexTemplate('shape=dot3;vertical=true;fillColor=#000000;connectable=0;', 15, 55, ''));
+        content.appendChild(ui.sidebar.createVertexTemplate('shape=dot3;fillColor=#000000;connectable=0;', 55, 15, ''));
         content.appendChild(ui.sidebar.createEdgeTemplateFromCells([updateEdgeV.prototype.create()], 160, 0, 'Update line vertical'));
         content.appendChild(ui.sidebar.createEdgeTemplateFromCells([updateEdgeH.prototype.create()], 160, 0, 'Update line horizontal'));
     });
