@@ -223,11 +223,15 @@ Draw.loadPlugin(function (ui) {
         let fillColor = mxUtils.getValue(this.style, 'fillColor', '#FFFFFF');
 
         c.setFillColor(fillColor)
+        let strokeTmp = this.strokewidth;
+        c.setStrokeWidth(2);
+
         c.ellipse(x - 10, y - 10, 20, 20);
         c.fillAndStroke();
 
+        c.setStrokeWidth(strokeTmp);
+        
         //Draw triangle
-
         let useSignPosition = mxUtils.getValue(this.style, 'useSignPosition', 'up');
         let useSignDirection = mxUtils.getValue(this.style, 'useSignDirection', 'north');
 
@@ -239,58 +243,59 @@ Draw.loadPlugin(function (ui) {
         c.begin()
         switch (useSignPosition) {
             case 'down':
-                dy = 30;
+                dy = 25;
                 dx = 0;
                 break;
             case 'left':
                 dy = 0;
-                dx = -30;
+                dx = -25;
 
                 break;
             case 'right':
                 dy = 0;
-                dx = -30;
+                dx = -25;
                 break;
             case 'up':
             default:
-                dy = -30;
+                dy = -25;
                 dx = 0;
         }
         switch (useSignDirection) {
             case 'north':
                 dy += -5;
-                tpts = [[-5,0],[0,-10],[5,0]];
-                rpt = [-5, 10]
+                tpts = [[-5,0],[0,-10],[5,0], [0,-2]];
+                rpt = [-5, 5]
                 break;
             case 'south':
                 dy += 5;
-                tpts = [[-5,0],[0,10],[5,0]];
-                rpt = [-5, -20]
+                tpts = [[-5,0],[0,10],[5,0], [0,2]];
+                rpt = [-5, -15]
                 break;
             case 'west':
                 dx += -5;
-                tpts = [[0,-5],[-10,0],[0,5]];
-                rpt = [10, -5]
+                tpts = [[0,-5],[-10,0],[0,5],[-2,0]];
+                rpt = [5, -5]
                 break;
             case 'east':
             default:
                 dx += 5;
-                tpts = [[0,-5],[10,0],[0,5]];
-                rpt = [-20, -5]
+                tpts = [[0,-5],[10,0],[0,5], [2,0]];
+                rpt = [-15, -5]
         }
         c.translate(x + dx, y + dy);
 
         c.moveTo(tpts[0][0], tpts[0][1]);
-
-        c.lineTo(tpts[1][0], tpts[1][1]);
-        c.lineTo(tpts[2][0], tpts[2][1]);
+        for (let i=1;i<tpts.length;i++) {
+            c.lineTo(tpts[i][0], tpts[i][1]);
+        }
         c.lineTo(tpts[0][0], tpts[0][1]);
+
         c.close();
         c.end();
+        c.setFillColor('#000000')
         c.fillAndStroke();
 
         //Output the R
-
         c.text(rpt[0], rpt[1], 10, 10, "R");
 
 
