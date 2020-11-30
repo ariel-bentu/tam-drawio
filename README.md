@@ -31,3 +31,9 @@ A drawio plugin which offers TAM notation
 - Restart VSCode
 - You will be prompted to Allow this plugin (once ever)
 - Allow and you are good to go
+
+
+## Usage tips
+- When using the using-edge (the line with circle and "R" and arrow), you can flip the direction by selecting the edge and pressing the new button on the toolbar (tooltip: Flip Use Direction)
+- Use direction and side, can be controlled by the Style
+- If you send the model to another person, that other person would need the TAM plugin to view it properly
