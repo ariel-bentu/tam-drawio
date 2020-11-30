@@ -70,7 +70,7 @@ Draw.loadPlugin(function (ui) {
     };
     tamUtils.registCodec(updateEdgeH);
 
-    
+
     function getStorage() {
         var cell = new mxCell('', new mxGeometry(0, 0, 90, 40), 'rounded=1;whiteSpace=wrap;html=1;arcSize=60;');
         cell.vertex = true;
@@ -120,11 +120,11 @@ Draw.loadPlugin(function (ui) {
         }
         let isVertical = mxUtils.getValue(this.style, 'vertical', false);
         if (isVertical) {
-            drawArrow(c, pts[0].x + 5, pts[0].y + 5, pts[1].x + 5, pts[1].y - 5, isVertical, false);
-            drawArrow(c, pts[0].x - 5, pts[0].y + 5, pts[1].x - 5, pts[1].y - 5, isVertical, true);
+            drawArrow(c, pts[0].x + 5, pts[0].y + 5, pts[1].x + 5, pts[1].y - 5, isVertical, false, true, false);
+            drawArrow(c, pts[0].x - 5, pts[0].y + 5, pts[1].x - 5, pts[1].y - 5, isVertical, true, false, true);
         } else {
-            drawArrow(c, pts[0].x + 5, pts[0].y - 5, pts[1].x - 5, pts[1].y - 5, isVertical, true);
-            drawArrow(c, pts[0].x + 5, pts[0].y + 5, pts[1].x - 5, pts[1].y + 5, isVertical, false);
+            drawArrow(c, pts[0].x + 5, pts[0].y - 5, pts[1].x - 5, pts[1].y - 5, isVertical, true, true, false);
+            drawArrow(c, pts[0].x + 5, pts[0].y + 5, pts[1].x - 5, pts[1].y + 5, isVertical, false, false, true);
         }
 
 
@@ -143,7 +143,7 @@ Draw.loadPlugin(function (ui) {
 
     };
 
-    function drawArrow(c, x1, y1, x2, y2, isVertical, isLeftUp) {
+    function drawArrow(c, x1, y1, x2, y2, isVertical, isLeftUp, startArrow, endArrow) {
         let cWidth = isLeftUp ? -10 : 10;
         let dx = 1;
         let dy = 1;
@@ -152,33 +152,37 @@ Draw.loadPlugin(function (ui) {
         c.begin();
         if (isVertical) {
             let h = y2 - y1;
-            c.moveTo(x1 + (isLeftUp ? dx : ArrowLength), y1 + (isLeftUp ? ArrowLength : dy));
-            c.lineTo(x1, y1);
-            c.lineTo(x1 - (isLeftUp ? ArrowLength : dy), y1 + (isLeftUp ? dx : ArrowLength));
+            if (startArrow) {
+                c.moveTo(x1 + (isLeftUp ? dx : ArrowLength), y1 + (isLeftUp ? ArrowLength : dy));
+                c.lineTo(x1, y1);
+                c.lineTo(x1 - (isLeftUp ? ArrowLength : dy), y1 + (isLeftUp ? dx : ArrowLength));
+            }
 
             c.moveTo(x1, y1);
             c.curveTo(x1 + cWidth, y1 + h / 3,
                 x1 + cWidth, y1 + 2 * h / 3,
                 x1, y2);
-
-            c.moveTo(x1 + (isLeftUp ? dx : ArrowLength), y2 - (isLeftUp ? ArrowLength : dy));
-            c.lineTo(x1, y2);
-            c.lineTo(x1 - (isLeftUp ? ArrowLength : dy), y2 - (isLeftUp ? dx : ArrowLength));
+            if (endArrow) {
+                c.moveTo(x1 + (isLeftUp ? dx : ArrowLength), y2 - (isLeftUp ? ArrowLength : dy));
+                c.lineTo(x1, y2);
+                c.lineTo(x1 - (isLeftUp ? ArrowLength : dy), y2 - (isLeftUp ? dx : ArrowLength));
+            }
         } else {
             let w = x2 - x1;
-            c.moveTo(x1 + (isLeftUp ? dy : ArrowLength), y1 - (isLeftUp ? ArrowLength : dx));
-            c.lineTo(x1, y1);
-            c.lineTo(x1 + (isLeftUp ? ArrowLength : dx), y1 + (isLeftUp ? dy : ArrowLength));
-
+            if (startArrow) {
+                c.moveTo(x1 + (isLeftUp ? dy : ArrowLength), y1 - (isLeftUp ? ArrowLength : dx));
+                c.lineTo(x1, y1);
+                c.lineTo(x1 + (isLeftUp ? ArrowLength : dx), y1 + (isLeftUp ? dy : ArrowLength));
+            }
             c.moveTo(x1, y1);
             c.curveTo(x1 + w / 3, y1 + cWidth,
                 x1 + 2 * w / 3, y1 + cWidth,
                 x2, y1);
-
-            c.moveTo(x2 - (isLeftUp ? dx : ArrowLength), y1 - (isLeftUp ? ArrowLength : dx));
-            c.lineTo(x2, y1);
-            c.lineTo(x2 - (isLeftUp ? ArrowLength : dy), y1 + (isLeftUp ? dx : ArrowLength));
-
+            if (endArrow) {
+                c.moveTo(x2 - (isLeftUp ? dx : ArrowLength), y1 - (isLeftUp ? ArrowLength : dx));
+                c.lineTo(x2, y1);
+                c.lineTo(x2 - (isLeftUp ? ArrowLength : dy), y1 + (isLeftUp ? dx : ArrowLength));
+            }
         }
         c.stroke();
     }
@@ -230,7 +234,7 @@ Draw.loadPlugin(function (ui) {
         c.fillAndStroke();
 
         c.setStrokeWidth(strokeTmp);
-        
+
         //Draw triangle
         let useSignPosition = mxUtils.getValue(this.style, 'useSignPosition', 'up');
         let useSignDirection = mxUtils.getValue(this.style, 'useSignDirection', 'north');
@@ -263,29 +267,29 @@ Draw.loadPlugin(function (ui) {
         switch (useSignDirection) {
             case 'north':
                 dy += -5;
-                tpts = [[-5,0],[0,-10],[5,0], [0,-2]];
+                tpts = [[-5, 0], [0, -10], [5, 0], [0, -2]];
                 rpt = [-5, 5]
                 break;
             case 'south':
                 dy += 5;
-                tpts = [[-5,0],[0,10],[5,0], [0,2]];
+                tpts = [[-5, 0], [0, 10], [5, 0], [0, 2]];
                 rpt = [-5, -15]
                 break;
             case 'west':
                 dx += -5;
-                tpts = [[0,-5],[-10,0],[0,5],[-2,0]];
+                tpts = [[0, -5], [-10, 0], [0, 5], [-2, 0]];
                 rpt = [5, -5]
                 break;
             case 'east':
             default:
                 dx += 5;
-                tpts = [[0,-5],[10,0],[0,5], [2,0]];
+                tpts = [[0, -5], [10, 0], [0, 5], [2, 0]];
                 rpt = [-15, -5]
         }
         c.translate(x + dx, y + dy);
 
         c.moveTo(tpts[0][0], tpts[0][1]);
-        for (let i=1;i<tpts.length;i++) {
+        for (let i = 1; i < tpts.length; i++) {
             c.lineTo(tpts[i][0], tpts[i][1]);
         }
         c.lineTo(tpts[0][0], tpts[0][1]);
@@ -372,29 +376,29 @@ Draw.loadPlugin(function (ui) {
 
             let cells = ui.editor.graph.getSelectionCells();
 
-                let useSignDirection = tamUtils.getStyleValue(cells[0], 'useSignDirection');
-                if (useSignDirection == '') {
-                    mxUtils.alert("Not a Use-relationship element!");
-                    return;
-                }
+            let useSignDirection = tamUtils.getStyleValue(cells[0], 'useSignDirection');
+            if (useSignDirection == '') {
+                mxUtils.alert("Not a Use-relationship element!");
+                return;
+            }
 
-                switch (useSignDirection) {
-                    case 'north':
-                        useSignDirection = 'south'
-                        break;
-                    case 'south':
-                        useSignDirection = 'north'
-                        break;
-                    case 'west':
-                        useSignDirection = 'east'
-                        break;
-                    case 'east':
-                        useSignDirection = 'west'
-                }
+            switch (useSignDirection) {
+                case 'north':
+                    useSignDirection = 'south'
+                    break;
+                case 'south':
+                    useSignDirection = 'north'
+                    break;
+                case 'west':
+                    useSignDirection = 'east'
+                    break;
+                case 'east':
+                    useSignDirection = 'west'
+            }
 
-                cells[0].setStyle(mxUtils.setStyle(cells[0].style, 'useSignDirection', useSignDirection));
-                ui.editor.graph.refresh(cells[0]);
-            
+            cells[0].setStyle(mxUtils.setStyle(cells[0].style, 'useSignDirection', useSignDirection));
+            ui.editor.graph.refresh(cells[0]);
+
         }
     });
 
