@@ -430,11 +430,60 @@ Draw.loadPlugin(function (ui) {
 
         c.stroke();
     };
-
-
-
     mxCellRenderer.registerShape('actor', Actor);
 
+    function LShape() {
+        mxRectangleShape.call(this);
+    };
+
+    mxUtils.extend(LShape, mxRectangleShape);
+    LShape.prototype.paintVertexShape = function (c, x, y, w, h) {
+        let margin = mxUtils.getValue(this.style, 'margin', h / 10);
+        c.begin();
+        c.moveTo(x, y);
+
+        let dx = mxUtils.getValue(this.style, 'dx', 80);
+        let dy = mxUtils.getValue(this.style, 'dy', 20);
+        c.lineTo(x + w, y);
+        c.lineTo(x + w, y + dy);
+        c.lineTo(x +  dx, y + dy);
+        c.lineTo(x +  dx, y + h);
+        c.lineTo(x, y + h);
+        c.lineTo(x, y);
+        c.close();
+        c.end();
+        c.stroke();
+
+    }
+    mxCellRenderer.registerShape('lshape', LShape);
+
+    function UShape() {
+        mxRectangleShape.call(this);
+    };
+
+    mxUtils.extend(UShape, mxRectangleShape);
+    UShape.prototype.paintVertexShape = function (c, x, y, w, h) {
+        let margin = mxUtils.getValue(this.style, 'margin', h / 10);
+        c.begin();
+        c.moveTo(x, y);
+
+        let dx = mxUtils.getValue(this.style, 'dx', 20);
+        let dy = mxUtils.getValue(this.style, 'dy', 80);
+
+        c.lineTo(x + dx, y);
+        c.lineTo(x + dx, y + dy);
+        c.lineTo(x +  w - dx, y + dy);
+        c.lineTo(x +  w - dx, y);
+        c.lineTo(x + w, y);
+        c.lineTo(x+w, y+h);
+        c.lineTo(x, y+h);
+        c.lineTo(x, y);
+        c.close();
+        c.end();
+        c.stroke();
+
+    }
+    mxCellRenderer.registerShape('ushape', UShape);
 
     // Adds custom sidebar entry
     ui.sidebar.addPalette(sidebar_id, sidebar_title, true, function (content) {
@@ -450,6 +499,8 @@ Draw.loadPlugin(function (ui) {
         content.appendChild(ui.sidebar.createVertexTemplate('shape=agent;offsetSize=8;strokeWidth=2;', 100, 60, ''));
         content.appendChild(ui.sidebar.createVertexTemplate('shape=agent;offsetSize=8;strokeWidth=2;multiple=true;', 100, 60, ''));
         content.appendChild(ui.sidebar.createVertexTemplate('shape=actor;horizontalLabelPosition=right;align=left;labelPosition=right;strokeWidth=2;', 25, 50, ''));
+        content.appendChild(ui.sidebar.createVertexTemplate('shape=lshape;dx=20;dy=20;strokeWidth=2;labelPosition=center;verticalLabelPosition=middle;align=center;verticalAlign=top;', 100, 100, ''));
+        content.appendChild(ui.sidebar.createVertexTemplate('shape=ushape;dx=20;dy=80;strokeWidth=2;labelPosition=center;verticalLabelPosition=middle;align=center;verticalAlign=bottom;', 100, 100, ''));
     });
 
     mxResources.parse('flipUse=Flip Use Direction');
@@ -500,3 +551,60 @@ Draw.loadPlugin(function (ui) {
 
 
 });
+
+
+
+if (typeof mxVertexHandler !== 'undefined' && Graph.handleFactory && typeof Graph.handleFactory === "object" ) {
+    let singleDxDyPoint = (state) => {
+        return [
+            createHandle(state, ['dx', 'dy'], function(bounds)
+            {
+                var dx = Math.max(0, Math.min(bounds.width, mxUtils.getValue(this.state.style, 'dx', 80)));
+                var dy = Math.max(0, Math.min(bounds.height, mxUtils.getValue(this.state.style, 'dy', 20)));
+            
+                return new mxPoint(bounds.x + dx, bounds.y + dy);
+            }, function(bounds, pt)
+            {
+                this.state.style['dx'] = Math.round(Math.max(0, Math.min(bounds.width, pt.x - bounds.x)));
+                this.state.style['dy'] = Math.round(Math.max(0, Math.min(bounds.height, pt.y - bounds.y)));
+            }, false)
+        ]
+    };
+
+    Graph.handleFactory['lshape'] = singleDxDyPoint;
+    Graph.handleFactory['ushape'] = singleDxDyPoint;
+
+
+    function createHandle(state, keys, getPositionFn, setPositionFn, ignoreGrid, redrawEdges, executeFn) {
+        var handle = new mxHandle(state, null, mxVertexHandler.prototype.secondaryHandleImage);
+
+        handle.execute = function (me) {
+            for (var i = 0; i < keys.length; i++) {
+                this.copyStyle(keys[i]);
+            }
+
+            if (executeFn) {
+                executeFn(me);
+            }
+        };
+
+        handle.getPosition = getPositionFn;
+        handle.setPosition = setPositionFn;
+        handle.ignoreGrid = (ignoreGrid != null) ? ignoreGrid : true;
+
+        // Overridden to update connected edges
+        if (redrawEdges) {
+            var positionChanged = handle.positionChanged;
+
+            handle.positionChanged = function () {
+                positionChanged.apply(this, arguments);
+
+                // Redraws connected edges TODO: Include child edges
+                state.view.invalidate(this.state.cell);
+                state.view.validate();
+            };
+        }
+
+        return handle;
+    };
+}
