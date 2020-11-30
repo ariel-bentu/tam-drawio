@@ -1,8 +1,4 @@
-2. User role
-3. fix the use-triangle
 
-5. Vertical/Horizontal lines
-6. Agents with multiplicity
 
-Bugs:
-- consider remove the 5 px in update-edge
+Vertical/Horizontal lines
+

@@ -224,9 +224,16 @@ Draw.loadPlugin(function (ui) {
         let x = pts[i].x + (pts[i + 1].x - pts[i].x) / 2;
         let y = pts[i].y + (pts[i + 1].y - pts[i].y) / 2;
 
-        let fillColor = mxUtils.getValue(this.style, 'fillColor', '#FFFFFF');
-
-        c.setFillColor(fillColor)
+        let fillColor = mxUtils.getValue(this.style, 'fillColor', '');
+        if (fillColor != '') {
+            c.setFillColor(fillColor)
+        } else {
+            if (uiTheme == 'dark') {
+                c.setFillColor('#000000')
+            } else {
+                c.setFillColor('#FFFFFF')
+            }
+        }
         let strokeTmp = this.strokewidth;
         c.setStrokeWidth(2);
 
@@ -296,12 +303,12 @@ Draw.loadPlugin(function (ui) {
 
         c.close();
         c.end();
-        c.setFillColor('#000000')
+        c.setFillColor(this.stroke)
         c.fillAndStroke();
 
         //Output the R
+        c.setFontColor(this.stroke)
         c.text(rpt[0], rpt[1], 10, 10, "R");
-
 
         if (sourceMarker != null) {
             sourceMarker();
@@ -326,7 +333,7 @@ Draw.loadPlugin(function (ui) {
     Dot3.prototype.paintVertexShape = function (c, x, y, w, h) {
         let isVertical = mxUtils.getValue(this.style, 'vertical', false);
         let radius = isVertical ? 2 * w / 3 : 2 * h / 3;
-
+        c.setFillColor(this.stroke);
 
         let x1 = x + radius * .25;
         let y1 = y + radius * .25;
@@ -346,32 +353,103 @@ Draw.loadPlugin(function (ui) {
 
     mxCellRenderer.registerShape('dot3', Dot3);
 
+    function Agent() {
+        mxRectangleShape.call(this);
+    };
 
+    mxUtils.extend(Agent, mxRectangleShape);
 
+    Agent.prototype.paintVertexShape = function (c, x, y, w, h) {
+        let multiple = mxUtils.getValue(this.style, 'multiple', false);
+        let offsetSize = mxUtils.getValue(this.style, 'offsetSize', 8);
+
+        if (multiple) {
+            drawRect(c, x + offsetSize, y - offsetSize, w, h);
+        }
+        drawRect(c, x, y, w, h);
+    };
+
+    function drawRect(c, x, y, w, h) {
+        c.begin();
+        c.moveTo(x, y);
+        c.lineTo(x + w, y);
+        c.lineTo(x + w, y + h);
+        c.lineTo(x, y + h);
+        c.lineTo(x, y);
+        c.close();
+        c.end();
+        c.fillAndStroke()
+    }
+
+    mxCellRenderer.registerShape('agent', Agent);
+
+    function Actor() {
+        mxRectangleShape.call(this);
+    };
+
+    mxUtils.extend(Actor, mxRectangleShape);
+
+    Actor.prototype.paintVertexShape = function (c, x, y, w, h) {
+        drawRect(c, x, y, w, h);
+        let margin = mxUtils.getValue(this.style, 'margin', 10);
+        x += margin / 2;
+        y += margin / 2;
+        w -= margin;
+        h -= margin;
+
+        c.translate(x, y);
+
+        // Head
+        c.ellipse(w / 4, 0, w / 2, h / 4);
+        c.fillAndStroke();
+
+        c.begin();
+        c.moveTo(w / 2, h / 4);
+        c.lineTo(w / 2, 2 * h / 3);
+
+        // Arms
+        c.moveTo(w / 2, h / 3 + 3);
+        c.lineTo(0, h / 3 );
+        c.moveTo(w / 2, h / 3 + 3);
+        c.lineTo(w, h / 3);
+
+        // Legs
+        c.moveTo(w / 2, 2 * h / 3);
+        c.lineTo(0, h);
+        c.moveTo(w / 2, 2 * h / 3);
+        c.lineTo(w, h);
+        c.end();
+
+        c.stroke();
+    };
+
+    
+
+    mxCellRenderer.registerShape('actor', Actor);
 
 
     // Adds custom sidebar entry
     ui.sidebar.addPalette(sidebar_id, sidebar_title, true, function (content) {
 
-        content.appendChild(ui.sidebar.createEdgeTemplate('shape=useedge;vertical=true;endArrow=none;fillColor=#FFFFFF;useSignPosition=left;useSignDirection=south;', 0, 160, ''));
-        content.appendChild(ui.sidebar.createEdgeTemplate('shape=useedge;endArrow=none;fillColor=#FFFFFF;useSignPosition=up;useSignDirection=east;', 160, 0, ''));
-        content.appendChild(ui.sidebar.createEdgeTemplate('shape=useedge;vertical=true;edgeStyle=elbowEdgeStyle;elbow=vertical;endArrow=none;fillColor=#FFFFFF;useSignPosition=up;useSignDirection=east;', 70, 160, ''));
-        content.appendChild(ui.sidebar.createEdgeTemplate('shape=useedge;edgeStyle=elbowEdgeStyle;elbow=horizontal;endArrow=none;fillColor=#FFFFFF;useSignPosition=left;useSignDirection=south;', 160, 70, ''));
+        content.appendChild(ui.sidebar.createEdgeTemplate('shape=useedge;vertical=true;endArrow=none;useSignPosition=left;useSignDirection=south;', 0, 160, ''));
+        content.appendChild(ui.sidebar.createEdgeTemplate('shape=useedge;endArrow=none;useSignPosition=up;useSignDirection=east;', 160, 0, ''));
+        content.appendChild(ui.sidebar.createEdgeTemplate('shape=useedge;vertical=true;edgeStyle=elbowEdgeStyle;elbow=vertical;endArrow=none;useSignPosition=up;useSignDirection=east;', 70, 160, ''));
+        content.appendChild(ui.sidebar.createEdgeTemplate('shape=useedge;edgeStyle=elbowEdgeStyle;elbow=horizontal;endArrow=none;useSignPosition=left;useSignDirection=south;', 160, 70, ''));
         content.appendChild(ui.sidebar.createVertexTemplate('rounded=1;whiteSpace=wrap;html=1;arcSize=60;', 90, 40, ''));
-        content.appendChild(ui.sidebar.createVertexTemplate('shape=dot3;vertical=true;fillColor=#000000;connectable=0;', 15, 55, ''));
-        content.appendChild(ui.sidebar.createVertexTemplate('shape=dot3;fillColor=#000000;connectable=0;', 55, 15, ''));
+        content.appendChild(ui.sidebar.createVertexTemplate('shape=dot3;vertical=true;connectable=0;', 15, 55, ''));
+        content.appendChild(ui.sidebar.createVertexTemplate('shape=dot3;connectable=0;', 55, 15, ''));
         content.appendChild(ui.sidebar.createEdgeTemplateFromCells([updateEdgeV.prototype.create()], 160, 0, 'Update line vertical'));
         content.appendChild(ui.sidebar.createEdgeTemplateFromCells([updateEdgeH.prototype.create()], 160, 0, 'Update line horizontal'));
-        content.appendChild(ui.sidebar.createEdgeTemplate('shape=useedge;vertical=true;endArrow=none;fillColor=#FFFFFF;useSignPosition=left;useSignDirection=south;', 0, 160, ''));
-        content.appendChild(ui.sidebar.createEdgeTemplate('shape=useedge;endArrow=none;fillColor=#FFFFFF;useSignPosition=up;useSignDirection=east;', 160, 0, ''));
-        content.appendChild(ui.sidebar.createEdgeTemplate('shape=useedge;vertical=true;edgeStyle=elbowEdgeStyle;elbow=vertical;endArrow=none;fillColor=#FFFFFF;useSignPosition=up;useSignDirection=east;', 70, 160, ''));
-        content.appendChild(ui.sidebar.createEdgeTemplate('shape=useedge;edgeStyle=elbowEdgeStyle;elbow=horizontal;endArrow=none;fillColor=#FFFFFF;useSignPosition=left;useSignDirection=south;', 160, 70, ''));
+        content.appendChild(ui.sidebar.createVertexTemplate('shape=agent;offsetSize=8;', 100, 60, ''));
+        content.appendChild(ui.sidebar.createVertexTemplate('shape=agent;offsetSize=8;multiple=true;', 100, 60, ''));
+        content.appendChild(ui.sidebar.createVertexTemplate('shape=actor;horizontalLabelPosition=right;align=left;labelPosition=right;', 25, 50, ''));
     });
 
     mxResources.parse('flipUse=Flip Use Direction');
 
     // Adds action
     ui.actions.addAction('flipUse', function () {
+
         if (!ui.editor.graph.isSelectionEmpty() && !ui.editor.graph.isEditing()) {
 
             let cells = ui.editor.graph.getSelectionCells();
