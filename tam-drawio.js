@@ -430,7 +430,6 @@ Draw.loadPlugin(function (ui) {
 
     // Adds custom sidebar entry
     ui.sidebar.addPalette(sidebar_id, sidebar_title, true, function (content) {
-
         content.appendChild(ui.sidebar.createEdgeTemplate('shape=useedge;vertical=true;endArrow=none;useSignPosition=left;useSignDirection=south;', 0, 160, ''));
         content.appendChild(ui.sidebar.createEdgeTemplate('shape=useedge;endArrow=none;useSignPosition=up;useSignDirection=east;', 160, 0, ''));
         content.appendChild(ui.sidebar.createEdgeTemplate('shape=useedge;vertical=true;edgeStyle=elbowEdgeStyle;elbow=vertical;endArrow=none;useSignPosition=up;useSignDirection=east;', 70, 160, ''));
@@ -440,9 +439,9 @@ Draw.loadPlugin(function (ui) {
         content.appendChild(ui.sidebar.createVertexTemplate('shape=dot3;connectable=0;', 55, 15, ''));
         content.appendChild(ui.sidebar.createEdgeTemplateFromCells([updateEdgeV.prototype.create()], 160, 0, 'Update line vertical'));
         content.appendChild(ui.sidebar.createEdgeTemplateFromCells([updateEdgeH.prototype.create()], 160, 0, 'Update line horizontal'));
-        content.appendChild(ui.sidebar.createVertexTemplate('shape=agent;offsetSize=8;', 100, 60, ''));
-        content.appendChild(ui.sidebar.createVertexTemplate('shape=agent;offsetSize=8;multiple=true;', 100, 60, ''));
-        content.appendChild(ui.sidebar.createVertexTemplate('shape=actor;horizontalLabelPosition=right;align=left;labelPosition=right;', 25, 50, ''));
+        content.appendChild(ui.sidebar.createVertexTemplate('shape=agent;offsetSize=8;strokeWidth=2;', 100, 60, ''));
+        content.appendChild(ui.sidebar.createVertexTemplate('shape=agent;offsetSize=8;strokeWidth=2;multiple=true;', 100, 60, ''));
+        content.appendChild(ui.sidebar.createVertexTemplate('shape=actor;horizontalLabelPosition=right;align=left;labelPosition=right;strokeWidth=2;', 25, 50, ''));
     });
 
     mxResources.parse('flipUse=Flip Use Direction');
