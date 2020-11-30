@@ -229,7 +229,7 @@ Draw.loadPlugin(function (ui) {
             c.setFillColor(fillColor)
         } else {
             if (uiTheme == 'dark') {
-                c.setFillColor('#000000')
+                c.setFillColor('#2A2A2A')
             } else {
                 c.setFillColor('#FFFFFF')
             }
@@ -244,14 +244,13 @@ Draw.loadPlugin(function (ui) {
 
         //Draw triangle
         let useSignPosition = mxUtils.getValue(this.style, 'useSignPosition', 'up');
-        let useSignDirection = mxUtils.getValue(this.style, 'useSignDirection', 'north');
+        let useSignDirection = mxUtils.getValue(this.style, 'useSignDirection', 'none');
 
 
 
         let dx, dy;
         let tpts, rpt
 
-        c.begin()
         switch (useSignPosition) {
             case 'down':
                 dy = 25;
@@ -272,6 +271,10 @@ Draw.loadPlugin(function (ui) {
                 dx = 0;
         }
         switch (useSignDirection) {
+            case 'none':
+                tpts = [];
+                rpt = [-5, -5];
+                break;
             case 'north':
                 dy += -5;
                 tpts = [[-5, 0], [0, -10], [5, 0], [0, -2]];
@@ -294,22 +297,25 @@ Draw.loadPlugin(function (ui) {
                 rpt = [-15, -5]
         }
         c.translate(x + dx, y + dy);
+        if (useSignDirection != 'none') {
+            c.begin()
 
-        c.moveTo(tpts[0][0], tpts[0][1]);
-        for (let i = 1; i < tpts.length; i++) {
-            c.lineTo(tpts[i][0], tpts[i][1]);
+            c.moveTo(tpts[0][0], tpts[0][1]);
+            for (let i = 1; i < tpts.length; i++) {
+                c.lineTo(tpts[i][0], tpts[i][1]);
+            }
+            c.lineTo(tpts[0][0], tpts[0][1]);
+
+            c.close();
+            c.end();
+            c.setFillColor(this.stroke)
+            c.fillAndStroke();
+
+
+            //Output the R
+            c.setFontColor(this.stroke)
+            c.text(rpt[0], rpt[1], 10, 10, "R");
         }
-        c.lineTo(tpts[0][0], tpts[0][1]);
-
-        c.close();
-        c.end();
-        c.setFillColor(this.stroke)
-        c.fillAndStroke();
-
-        //Output the R
-        c.setFontColor(this.stroke)
-        c.text(rpt[0], rpt[1], 10, 10, "R");
-
         if (sourceMarker != null) {
             sourceMarker();
         }
@@ -390,8 +396,10 @@ Draw.loadPlugin(function (ui) {
     mxUtils.extend(Actor, mxRectangleShape);
 
     Actor.prototype.paintVertexShape = function (c, x, y, w, h) {
+        //we maintain aspect ratio
+        w = 2 * h / 3
         drawRect(c, x, y, w, h);
-        let margin = mxUtils.getValue(this.style, 'margin', 10);
+        let margin = mxUtils.getValue(this.style, 'margin', h / 10);
         x += margin / 2;
         y += margin / 2;
         w -= margin;
@@ -409,7 +417,7 @@ Draw.loadPlugin(function (ui) {
 
         // Arms
         c.moveTo(w / 2, h / 3 + 3);
-        c.lineTo(0, h / 3 );
+        c.lineTo(0, h / 3);
         c.moveTo(w / 2, h / 3 + 3);
         c.lineTo(w, h / 3);
 
@@ -423,7 +431,7 @@ Draw.loadPlugin(function (ui) {
         c.stroke();
     };
 
-    
+
 
     mxCellRenderer.registerShape('actor', Actor);
 
@@ -454,6 +462,9 @@ Draw.loadPlugin(function (ui) {
             let cells = ui.editor.graph.getSelectionCells();
 
             let useSignDirection = tamUtils.getStyleValue(cells[0], 'useSignDirection');
+            if (useSignDirection == 'none')
+                return;
+
             if (useSignDirection == '') {
                 mxUtils.alert("Not a Use-relationship element!");
                 return;

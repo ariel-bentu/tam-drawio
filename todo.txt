@@ -1,4 +1,5 @@
 
 
-Vertical/Horizontal lines
+Force Vertical/Horizontal lines
 
+L-shape and U-shape for agents
