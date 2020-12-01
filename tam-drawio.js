@@ -215,32 +215,59 @@ Draw.loadPlugin(function (ui) {
         }
         let isVertical = mxUtils.getValue(this.style, 'vertical', false);
 
-        //draw-line (always straight)
-        mxPolyline.prototype.paintEdgeShape.apply(this, arguments);
+        var prev = c.pointerEventsValue;
+        c.pointerEventsValue = 'stroke';
 
-        //Draw circle
-        let i = pts.length > 3 ? 1 : 0
-
-        let x = pts[i].x + (pts[i + 1].x - pts[i].x) / 2;
-        let y = pts[i].y + (pts[i + 1].y - pts[i].y) / 2;
-
-        let fillColor = mxUtils.getValue(this.style, 'fillColor', '');
-        if (fillColor != '') {
-            c.setFillColor(fillColor)
-        } else {
-            if (uiTheme == 'dark') {
-                c.setFillColor('#2A2A2A')
-            } else {
-                c.setFillColor('#FFFFFF')
+        const drawEdge = (drawPoints) => {
+            if (this.style == null || this.style[mxConstants.STYLE_CURVED] != 1) {
+                this.paintLine(c, drawPoints, this.isRounded);
+            }
+            else {
+                this.paintCurvedLine(c, drawPoints);
             }
         }
-        let strokeTmp = this.strokewidth;
-        c.setStrokeWidth(2);
+        const circleRadius = 8;
+        let x, y
+        let p0 = 0, p1 = 1;
+        if (pts.length > 2) {
+            p0 = Math.floor(pts.length / 2) - 1;
+            p1 = p0 + 1;
+        }
+        let p = ""
+        for (let j = 0; j < pts.length; j++) {
+            p = p+ "[" + pts[j].x + "," + pts[j].y + "],"
+        }
 
-        c.ellipse(x - 10, y - 10, 20, 20);
-        c.fillAndStroke();
+        ui.editor.setStatus(p)
+        let vertLine = (pts.length == 2) ? isVertical : !isVertical;
 
-        c.setStrokeWidth(strokeTmp);
+        x = vertLine ? pts[p0].x : pts[p0].x + (pts[p1].x - pts[p0].x) / 2;
+        y = vertLine ? pts[p0].y + (pts[p1].y - pts[p0].y) / 2 : pts[p0].y;
+
+        let cpt = vertLine ? new mxPoint(x, y + circleRadius) : new mxPoint(x - circleRadius, y)
+        let pts1 = [], i = 0
+        for (; i <= p0; i++) {
+            pts1.push(pts[i])
+        }
+        pts1.push(cpt);
+        drawEdge(pts1);
+        c.ellipse(x - circleRadius, y - circleRadius, circleRadius * 2, circleRadius * 2);
+        c.stroke();
+        cpt = vertLine ? new mxPoint(x, y - circleRadius) : new mxPoint(x + circleRadius, y)
+        let endPoint =
+            (pts.length == 2) ?
+            (vertLine ? new mxPoint(pts[0].x, pts[1].y) : new mxPoint(pts[1].x, pts[0].y)) :
+                pts[pts.length - 1];
+
+        pts1 = [cpt]
+        for (i = p1; i <= pts.length - 2; i++) {
+            pts1.push(pts[i])
+        }
+        pts1.push(endPoint);
+        drawEdge(pts1);
+
+
+        c.pointerEventsValue = prev;
 
         //Draw triangle
         let useSignPosition = mxUtils.getValue(this.style, 'useSignPosition', 'up');
@@ -316,6 +343,12 @@ Draw.loadPlugin(function (ui) {
             c.setFontColor(this.stroke)
             c.text(rpt[0], rpt[1], 10, 10, "R");
         }
+
+        // Disables shadows, dashed styles and fixes fill color for markers
+        c.setFillColor(this.stroke);
+        c.setShadow(false);
+        c.setDashed(false);
+
         if (sourceMarker != null) {
             sourceMarker();
         }
@@ -446,13 +479,14 @@ Draw.loadPlugin(function (ui) {
         let dy = mxUtils.getValue(this.style, 'dy', 20);
         c.lineTo(x + w, y);
         c.lineTo(x + w, y + dy);
-        c.lineTo(x +  dx, y + dy);
-        c.lineTo(x +  dx, y + h);
+        c.lineTo(x + dx, y + dy);
+        c.lineTo(x + dx, y + h);
         c.lineTo(x, y + h);
         c.lineTo(x, y);
         c.close();
         c.end();
         c.stroke();
+
 
     }
     mxCellRenderer.registerShape('lshape', LShape);
@@ -472,11 +506,11 @@ Draw.loadPlugin(function (ui) {
 
         c.lineTo(x + dx, y);
         c.lineTo(x + dx, y + dy);
-        c.lineTo(x +  w - dx, y + dy);
-        c.lineTo(x +  w - dx, y);
+        c.lineTo(x + w - dx, y + dy);
+        c.lineTo(x + w - dx, y);
         c.lineTo(x + w, y);
-        c.lineTo(x+w, y+h);
-        c.lineTo(x, y+h);
+        c.lineTo(x + w, y + h);
+        c.lineTo(x, y + h);
         c.lineTo(x, y);
         c.close();
         c.end();
@@ -554,17 +588,15 @@ Draw.loadPlugin(function (ui) {
 
 
 
-if (typeof mxVertexHandler !== 'undefined' && Graph.handleFactory && typeof Graph.handleFactory === "object" ) {
+if (typeof mxVertexHandler !== 'undefined' && Graph.handleFactory && typeof Graph.handleFactory === "object") {
     let singleDxDyPoint = (state) => {
         return [
-            createHandle(state, ['dx', 'dy'], function(bounds)
-            {
+            createHandle(state, ['dx', 'dy'], function (bounds) {
                 var dx = Math.max(0, Math.min(bounds.width, mxUtils.getValue(this.state.style, 'dx', 80)));
                 var dy = Math.max(0, Math.min(bounds.height, mxUtils.getValue(this.state.style, 'dy', 20)));
-            
+
                 return new mxPoint(bounds.x + dx, bounds.y + dy);
-            }, function(bounds, pt)
-            {
+            }, function (bounds, pt) {
                 this.state.style['dx'] = Math.round(Math.max(0, Math.min(bounds.width, pt.x - bounds.x)));
                 this.state.style['dy'] = Math.round(Math.max(0, Math.min(bounds.height, pt.y - bounds.y)));
             }, false)
