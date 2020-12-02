@@ -430,7 +430,7 @@ Draw.loadPlugin(function (ui) {
             c.lineTo(x, y);
             c.close();
             c.end();
-            c.stroke();
+            c.fillAndStroke();
         }
     }
 
@@ -452,7 +452,7 @@ Draw.loadPlugin(function (ui) {
             c.lineTo(x, y);
             c.close();
             c.end();
-            c.stroke();
+            c.fillAndStroke();
         }
     }
 
