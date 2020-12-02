@@ -90,36 +90,60 @@ Draw.loadPlugin(function (ui) {
         return handle;
     }
 
-    class TamUtils {
-        static getStyleValue = (cell, name) => typeof cell.style === 'string' ?
-            (match => Array.isArray(match) ? match[2].trim() : '')(
-                cell.style.match(new RegExp(`(^|;)${name}=([^;]+)(;|$)`))
-            ) : ''
-        static getStyleObject = styleString => styleString
+    const tamConstants = {
+        UP: 'up',
+        DOWN: 'down',
+        LEFT: 'left',
+        RIGHT: 'right'
+    };
+
+    const rotatePosition = {
+        [tamConstants.UP]: tamConstants.LEFT,
+        [tamConstants.DOWN]: tamConstants.RIGHT,
+        [tamConstants.LEFT]: tamConstants.UP,
+        [tamConstants.RIGHT]: tamConstants.DOWN
+    };
+
+    const rotateDirection = {
+        [mxConstants.DIRECTION_NORTH]: mxConstants.DIRECTION_EAST,
+        [mxConstants.DIRECTION_SOUTH]: mxConstants.DIRECTION_WEST,
+        [mxConstants.DIRECTION_EAST]: mxConstants.DIRECTION_NORTH,
+        [mxConstants.DIRECTION_WEST]: mxConstants.DIRECTION_SOUTH
+    };
+
+    const flipDirection = {
+        [mxConstants.DIRECTION_NORTH]: mxConstants.DIRECTION_SOUTH,
+        [mxConstants.DIRECTION_SOUTH]: mxConstants.DIRECTION_NORTH,
+        [mxConstants.DIRECTION_EAST]: mxConstants.DIRECTION_WEST,
+        [mxConstants.DIRECTION_WEST]: mxConstants.DIRECTION_EAST
+    }
+
+    const tamUtils = {
+        getStyleObject: styleString => styleString
             .split(';')
             .reduce(
                 (acc, cur) => (
-                    (([key, val]) => key && (acc[key] = val))(cur.split('=')),
+                    (([key, val]) => key && (acc[key] = val))(cur.split('=')), 
                     acc
                 ),
                 {}
-            )
-        static getStyleString = styleObj => Object.keys(styleObj)
-            .reduce((acc, cur) => acc + `${cur}=${styleObj[cur]};`, '')
-        static registerCodec = codecClass => {
+            ),
+        getStyleString: styleObj => Object.keys(styleObj)
+            .reduce((acc, cur) => acc + `${cur}=${styleObj[cur]};`, ''),
+        registerCodec: codecClass => {
             const codec = new mxObjectCodec(new codecClass());
             codec.encode = enc => enc.document.createElement(codecClass.name);
             codec.decode = () => new codecClass();
             mxCodecRegistry.register(codec);
         }
-    }
+    };
 
     class StorageCodec {
         create() {
             const cell = new mxCell(
                 '',
                 new mxGeometry(0, 0, 90, 40),
-                TamUtils.getStyleString({
+                tamUtils.getStyleString({
                     rounded: 1,
                     whiteSpace: 'wrap',
                     html: 1,
@@ -136,7 +160,7 @@ Draw.loadPlugin(function (ui) {
             const cell = new mxCell(
                 '',
                 new mxGeometry(0, 0, 30, 80),
-                TamUtils.getStyleString({
+                tamUtils.getStyleString({
                     shape: 'updateedge',
                     endArrow: 'none',
                     vertical: true
@@ -155,7 +179,7 @@ Draw.loadPlugin(function (ui) {
             const cell = new mxCell(
                 '',
                 new mxGeometry(0, 0, 80, 30),
-                TamUtils.getStyleString({
+                tamUtils.getStyleString({
                     shape: 'updateedge',
                     endArrow: 'none'
                 })
@@ -211,26 +235,76 @@ Draw.loadPlugin(function (ui) {
                     this.paintCurvedLine(c, drawPoints) :
                     this.paintLine(c, drawPoints, this.isRounded);
             }
-            const circleRadius = 8;
-            let x, y
-            let p0 = 0, p1 = 1;
-            if (pts.length > 2) {
-                p0 = Math.floor(pts.length / 2) - 1;
-                p1 = p0 + 1;
+
+            const inBetween = (n, n1, n2) => {
+                return (n >= n1 && n <= n2 || n >= n2 && n <= n1);
             }
 
-            ui.editor.setStatus(pts.map(p => `[${p.x},${p.y}]`).join(','));
-            let vertLine = (pts.length === 2) ? isVertical : !isVertical;
+            const circleRadius = 8;
+            let x = 0, y = 0;
+            let p0 = 0, p1 = 1;
+            let vertLine = isVertical;
 
-            x = vertLine ? pts[p0].x : pts[p0].x + (pts[p1].x - pts[p0].x) / 2;
-            y = vertLine ? pts[p0].y + (pts[p1].y - pts[p0].y) / 2 : pts[p0].y;
+            let cx = mxUtils.getNumber(this.state.style, 'dx', -1);
+            let cy = mxUtils.getNumber(this.state.style, 'dy', -1);
+            let rectMsg = ""
+            if (cx === -1 || cy === -1) {
+                //uninitialized
+                vertLine = (pts.length === 2) ? isVertical : !isVertical;
+
+                if (pts.length > 2) {
+                    p0 = Math.floor(pts.length / 2) - 1;
+                    p1 = p0 + 1;
+                }
+
+                x = vertLine ? pts[p0].x : pts[p0].x + (pts[p1].x - pts[p0].x) / 2;
+                y = vertLine ? pts[p0].y + (pts[p1].y - pts[p0].y) / 2 : pts[p0].y;
+            } else {
+                //calculate on-the-line point
+                p0 = 0;
+                p1 = 1;
+                let left = Math.min(pts[0].x, pts[pts.length - 1].x);
+                let top = Math.min(pts[0].y, pts[pts.length - 1].y);
+                rectMsg = "[" + left + "," + top + "]"
+                for (let i = 0; i < pts.length - 1; i++) {
+
+                    if (pts[i].x === pts[i + 1].x || isVertical && pts.length === 2) {
+                        if (inBetween(top + cy, pts[i].y, pts[i + 1].y)) {
+                            y = top + cy;
+                            x = pts[i].x;
+                            p0 = i;
+                            p1 = i + 1;
+                            vertLine = true;
+
+                            if (Math.abs(pts[i].x - (left + cx)) <= 2 * circleRadius) {
+                                //found best match
+                                break;
+                            }
+                        }
+                    } else {
+                        if (inBetween(left + cx, pts[i].x, pts[i + 1].x)) {
+                            y = pts[i].y;
+                            x = left + cx;
+                            p0 = i;
+                            p1 = i + 1;
+                            vertLine = false;
+
+                            if (Math.abs(pts[i].y - (top + cy)) <= 2 * circleRadius) {
+                                //found best match
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
 
             const lineDirectionCoefficient = vertLine ?
-                (pts[0].y > pts[pts.length-1].y ? 1 : -1) :
-                (pts[0].x < pts[pts.length-1].x ? 1 : -1);
+                (pts[p0].y > pts[p1].y ? 1 : -1) :
+                (pts[p0].x < pts[p1].x ? 1 : -1);
             let cpt = vertLine ?
                 new mxPoint(x, y + lineDirectionCoefficient * circleRadius) :
                 new mxPoint(x - lineDirectionCoefficient * circleRadius, y);
+            ui.editor.setStatus(rectMsg + "--" + JSON.stringify(pts) + "--" + cpt.x + "," + cpt.y)
             let pts1 = [...pts.slice(0,p0+1), cpt]
             drawEdge(pts1);
 
@@ -257,17 +331,19 @@ Draw.loadPlugin(function (ui) {
 
             c.pointerEventsValue = prev;
 
-            //Draw triangle
+            // Draw triangle
             let useSignPosition = mxUtils.getValue(this.style, 'useSignPosition', 'up');
             let useSignDirection = mxUtils.getValue(this.style, 'useSignDirection', 'none');
 
+            // Preserve logical direction of triangle, when curve is flipped
             if (useSignDirection !== 'none' && lineDirectionCoefficient === -1) {
-                useSignDirection = {
-                    north: 'south',
-                    south: 'north',
-                    west: 'east',
-                    east: 'west'
-                }[useSignDirection];
+                useSignDirection = flipDirection[useSignDirection];
+            }
+
+            // Adjust the location to the position of the circle
+            if (pts.length > 2 && p0 % 2 === 0) {
+                useSignPosition = rotatePosition[useSignPosition];
+                useSignDirection = rotateDirection[useSignDirection];
             }
 
             let dx, dy;
@@ -457,9 +533,9 @@ Draw.loadPlugin(function (ui) {
     }
 
     // Register codecs
-    TamUtils.registerCodec(StorageCodec);
-    TamUtils.registerCodec(VerticalUpdateEdgeCodec);
-    TamUtils.registerCodec(HorizontalUpdateEdgeCodec);
+    tamUtils.registerCodec(StorageCodec);
+    tamUtils.registerCodec(VerticalUpdateEdgeCodec);
+    tamUtils.registerCodec(HorizontalUpdateEdgeCodec);
 
     // Register custom shapes
     mxCellRenderer.registerShape('updateedge', UpdateEdgeShape);
@@ -472,10 +548,10 @@ Draw.loadPlugin(function (ui) {
 
     // Adds custom sidebar entry
     ui.sidebar.addPalette(sidebar_id, sidebar_title, true, function (content) {
-        content.appendChild(ui.sidebar.createEdgeTemplate('shape=useedge;vertical=true;endArrow=none;useSignPosition=left;useSignDirection=south;', 0, 160, ''));
-        content.appendChild(ui.sidebar.createEdgeTemplate('shape=useedge;endArrow=none;useSignPosition=up;useSignDirection=east;', 160, 0, ''));
-        content.appendChild(ui.sidebar.createEdgeTemplate('shape=useedge;vertical=true;edgeStyle=elbowEdgeStyle;elbow=vertical;endArrow=none;useSignPosition=up;useSignDirection=east;', 70, 160, ''));
-        content.appendChild(ui.sidebar.createEdgeTemplate('shape=useedge;edgeStyle=elbowEdgeStyle;elbow=horizontal;endArrow=none;useSignPosition=left;useSignDirection=south;', 160, 70, ''));
+        content.appendChild(ui.sidebar.createEdgeTemplate('shape=useedge;vertical=true;endArrow=none;useSignPosition=left;useSignDirection=south;dx=0;dy=80;', 0, 160, ''));
+        content.appendChild(ui.sidebar.createEdgeTemplate('shape=useedge;endArrow=none;useSignPosition=up;useSignDirection=east;dx=80;dy=0;', 160, 0, ''));
+        content.appendChild(ui.sidebar.createEdgeTemplate('shape=useedge;vertical=true;edgeStyle=elbowEdgeStyle;elbow=vertical;endArrow=none;useSignPosition=up;useSignDirection=east;dx=35;dy=80;', 70, 160, ''));
+        content.appendChild(ui.sidebar.createEdgeTemplate('shape=useedge;edgeStyle=elbowEdgeStyle;elbow=horizontal;endArrow=none;useSignPosition=left;useSignDirection=south;dx=80;dy=35;', 160, 70, ''));
         content.appendChild(ui.sidebar.createVertexTemplate('rounded=1;whiteSpace=wrap;html=1;arcSize=60;strokeWidth=2;', 90, 40, ''));
         content.appendChild(ui.sidebar.createVertexTemplate('shape=dot3;vertical=true;connectable=0;', 15, 55, ''));
         content.appendChild(ui.sidebar.createVertexTemplate('shape=dot3;connectable=0;', 55, 15, ''));
@@ -496,7 +572,7 @@ Draw.loadPlugin(function (ui) {
         if (!ui.editor.graph.isSelectionEmpty() && !ui.editor.graph.isEditing()) {
 
             const  cells = ui.editor.graph.getSelectionCells();
-            let style = TamUtils.getStyleObject(cells[0].style);
+            let style = tamUtils.getStyleObject(cells[0].style);
 
             if (style.shape !== 'useedge') {
                 return;
@@ -551,5 +627,6 @@ Draw.loadPlugin(function (ui) {
 
         Graph.handleFactory['lshape'] = singleDxDyPoint;
         Graph.handleFactory['ushape'] = singleDxDyPoint;
+        Graph.handleFactory['useedge'] = singleDxDyPoint;
     }
 });
