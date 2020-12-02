@@ -1,17 +1,16 @@
 
+tamConsts = {
+    UP: 'up',
+    DOWN: 'down',
+    LEFT: 'left',
+    RIGHT: 'right'
+}
+
 Draw.loadPlugin(function (ui) {
     var sidebar_id = 'TAM';
     var sidebar_title = 'TAM Notation';
 
     var tamUtils = {};
-
-    tamUtils.isTam = function (cell) {
-        return (cell &&
-            cell.hasOwnProperty('value') &&
-            (cell.value && cell.value.hasAttribute &&
-                cell.value.hasAttribute('tamType'))
-        );
-    };
 
     tamUtils.getStyleValue = (cell, name) => {
         let style = cell.style;
@@ -31,8 +30,7 @@ Draw.loadPlugin(function (ui) {
         }
         return '';
     }
-
-    tamUtils.registCodec = function (func) {
+        tamUtils.registCodec = function (func) {
         var codec = new mxObjectCodec(new func());
         codec.encode = function (enc, obj) {
             try {
@@ -226,25 +224,79 @@ Draw.loadPlugin(function (ui) {
                 this.paintCurvedLine(c, drawPoints);
             }
         }
+
+        const inBetween = (n, n1, n2) => {
+            return (n >= n1 && n <= n2 || n >= n2 && n <= n1);
+        }
+
         const circleRadius = 8;
-        let x, y
+        let x = 0, y = 0;
         let p0 = 0, p1 = 1;
-        if (pts.length > 2) {
-            p0 = Math.floor(pts.length / 2) - 1;
-            p1 = p0 + 1;
+
+        let vertLine = isVertical;
+
+
+        let cx = mxUtils.getNumber(this.state.style, 'dx', -1);
+        let cy = mxUtils.getNumber(this.state.style, 'dy', -1);
+        let rectMsg = ""
+        if (cx == -1 || cy == -1) {
+            //uninitialized 
+            vertLine = (pts.length == 2) ? isVertical : !isVertical;
+
+            if (pts.length > 2) {
+                p0 = Math.floor(pts.length / 2) - 1;
+                p1 = p0 + 1;
+            }
+
+            x = vertLine ? pts[p0].x : pts[p0].x + (pts[p1].x - pts[p0].x) / 2;
+            y = vertLine ? pts[p0].y + (pts[p1].y - pts[p0].y) / 2 : pts[p0].y;
+
+            cx = x;
+            cy = y;
+        } else {
+            //calculate on-the-line point
+            p0 = 0;
+            p1 = 1;
+            let left = Math.min(pts[0].x, pts[pts.length - 1].x);
+            let top = Math.min(pts[0].y, pts[pts.length - 1].y);
+            rectMsg = "[" + left + "," + top + "]"
+            for (let i = 0; i < pts.length - 1; i++) {
+
+                if (pts[i].x == pts[i + 1].x || isVertical && pts.length == 2) {
+                    if (inBetween(top + cy, pts[i].y, pts[i + 1].y)) {
+                        y = top + cy;
+                        x = pts[i].x;
+                        p0 = i;
+                        p1 = i + 1;
+                        vertLine = true;
+
+                        if (Math.abs(pts[i].x - (left + cx)) <= 2 * circleRadius) {
+                            //found best match
+                            break;
+                        }
+                    }
+                } else {
+                    if (inBetween(left + cx, pts[i].x, pts[i + 1].x)) {
+                        y = pts[i].y;
+                        x = left + cx;
+                        p0 = i;
+                        p1 = i + 1;
+                        vertLine = false;
+
+                        if (Math.abs(pts[i].y - (top + cy)) <= 2 * circleRadius) {
+                            //found best match
+                            break;
+                        }
+                    }
+                }
+            }
         }
-        let p = ""
-        for (let j = 0; j < pts.length; j++) {
-            p = p+ "[" + pts[j].x + "," + pts[j].y + "],"
-        }
 
-        ui.editor.setStatus(p)
-        let vertLine = (pts.length == 2) ? isVertical : !isVertical;
+        let xRadiusInversion = (pts[p0].x > pts[p1].x)?-1:1;
+        let yRadiusInversion = pts[p0].y > pts[p1].y?1:-1;
 
-        x = vertLine ? pts[p0].x : pts[p0].x + (pts[p1].x - pts[p0].x) / 2;
-        y = vertLine ? pts[p0].y + (pts[p1].y - pts[p0].y) / 2 : pts[p0].y;
-
-        let cpt = vertLine ? new mxPoint(x, y + circleRadius) : new mxPoint(x - circleRadius, y)
+        let cpt = vertLine ? new mxPoint(x, y + circleRadius*yRadiusInversion) : new mxPoint(x - circleRadius*xRadiusInversion, y)
+        ui.editor.setStatus(rectMsg + "--" + JSON.stringify(pts) + "--" + cpt.x + "," + cpt.y)
         let pts1 = [], i = 0
         for (; i <= p0; i++) {
             pts1.push(pts[i])
@@ -253,10 +305,10 @@ Draw.loadPlugin(function (ui) {
         drawEdge(pts1);
         c.ellipse(x - circleRadius, y - circleRadius, circleRadius * 2, circleRadius * 2);
         c.stroke();
-        cpt = vertLine ? new mxPoint(x, y - circleRadius) : new mxPoint(x + circleRadius, y)
+        cpt = vertLine ? new mxPoint(x, y - circleRadius*yRadiusInversion) : new mxPoint(x + circleRadius*xRadiusInversion, y)
         let endPoint =
             (pts.length == 2) ?
-            (vertLine ? new mxPoint(pts[0].x, pts[1].y) : new mxPoint(pts[1].x, pts[0].y)) :
+                (vertLine ? new mxPoint(pts[0].x, pts[1].y) : new mxPoint(pts[1].x, pts[0].y)) :
                 pts[pts.length - 1];
 
         pts1 = [cpt]
@@ -274,6 +326,12 @@ Draw.loadPlugin(function (ui) {
         let useSignDirection = mxUtils.getValue(this.style, 'useSignDirection', 'none');
 
 
+        //adjust the location to the position of the circle
+        if (pts.length > 2 && p0 % 2 == 0) {
+            //need to flip
+            useSignPosition = rotatePosition(useSignPosition);
+            useSignDirection = rotateDirection(useSignDirection)
+        }
 
         let dx, dy;
         let tpts, rpt
@@ -521,10 +579,10 @@ Draw.loadPlugin(function (ui) {
 
     // Adds custom sidebar entry
     ui.sidebar.addPalette(sidebar_id, sidebar_title, true, function (content) {
-        content.appendChild(ui.sidebar.createEdgeTemplate('shape=useedge;vertical=true;endArrow=none;useSignPosition=left;useSignDirection=south;', 0, 160, ''));
-        content.appendChild(ui.sidebar.createEdgeTemplate('shape=useedge;endArrow=none;useSignPosition=up;useSignDirection=east;', 160, 0, ''));
-        content.appendChild(ui.sidebar.createEdgeTemplate('shape=useedge;vertical=true;edgeStyle=elbowEdgeStyle;elbow=vertical;endArrow=none;useSignPosition=up;useSignDirection=east;', 70, 160, ''));
-        content.appendChild(ui.sidebar.createEdgeTemplate('shape=useedge;edgeStyle=elbowEdgeStyle;elbow=horizontal;endArrow=none;useSignPosition=left;useSignDirection=south;', 160, 70, ''));
+        content.appendChild(ui.sidebar.createEdgeTemplate('shape=useedge;vertical=true;endArrow=none;useSignPosition=left;useSignDirection=south;dx=0;dy=80;', 0, 160, ''));
+        content.appendChild(ui.sidebar.createEdgeTemplate('shape=useedge;endArrow=none;useSignPosition=up;useSignDirection=east;dx=80;dy=0;', 160, 0, ''));
+        content.appendChild(ui.sidebar.createEdgeTemplate('shape=useedge;vertical=true;edgeStyle=elbowEdgeStyle;elbow=vertical;endArrow=none;useSignPosition=up;useSignDirection=east;dx=35;dy=80;', 70, 160, ''));
+        content.appendChild(ui.sidebar.createEdgeTemplate('shape=useedge;edgeStyle=elbowEdgeStyle;elbow=horizontal;endArrow=none;useSignPosition=left;useSignDirection=south;dx=80;dy=35;', 160, 70, ''));
         content.appendChild(ui.sidebar.createVertexTemplate('rounded=1;whiteSpace=wrap;html=1;arcSize=60;', 90, 40, ''));
         content.appendChild(ui.sidebar.createVertexTemplate('shape=dot3;vertical=true;connectable=0;', 15, 55, ''));
         content.appendChild(ui.sidebar.createVertexTemplate('shape=dot3;connectable=0;', 55, 15, ''));
@@ -554,20 +612,7 @@ Draw.loadPlugin(function (ui) {
                 mxUtils.alert("Not a Use-relationship element!");
                 return;
             }
-
-            switch (useSignDirection) {
-                case 'north':
-                    useSignDirection = 'south'
-                    break;
-                case 'south':
-                    useSignDirection = 'north'
-                    break;
-                case 'west':
-                    useSignDirection = 'east'
-                    break;
-                case 'east':
-                    useSignDirection = 'west'
-            }
+            useSignDirection = flipDirection(useSignDirection)
 
             cells[0].setStyle(mxUtils.setStyle(cells[0].style, 'useSignDirection', useSignDirection));
             ui.editor.graph.refresh(cells[0]);
@@ -605,6 +650,7 @@ if (typeof mxVertexHandler !== 'undefined' && Graph.handleFactory && typeof Grap
 
     Graph.handleFactory['lshape'] = singleDxDyPoint;
     Graph.handleFactory['ushape'] = singleDxDyPoint;
+    Graph.handleFactory['useedge'] = singleDxDyPoint;
 
 
     function createHandle(state, keys, getPositionFn, setPositionFn, ignoreGrid, redrawEdges, executeFn) {
@@ -639,4 +685,44 @@ if (typeof mxVertexHandler !== 'undefined' && Graph.handleFactory && typeof Grap
 
         return handle;
     };
+}
+
+function rotatePosition(direction) {
+    switch (direction) {
+        case tamConsts.UP:
+            return tamConsts.LEFT;
+        case tamConsts.DOWN:
+            return tamConsts.RIGHT;
+        case tamConsts.LEFT:
+            return tamConsts.UP;
+        case tamConsts.RIGHT:
+            return tamConsts.DOWN;
+    }
+}
+
+function rotateDirection(direction) {
+    switch (direction) {
+        case mxConstants.DIRECTION_NORTH:
+            return mxConstants.DIRECTION_EAST;
+        case mxConstants.DIRECTION_SOUTH:
+            return mxConstants.DIRECTION_WEST;
+        case mxConstants.DIRECTION_EAST:
+            return mxConstants.DIRECTION_NORTH;
+        case mxConstants.DIRECTION_WEST:
+            return mxConstants.DIRECTION_SOUTH;
+    }
+
+}
+function flipDirection(direction) {
+    switch (direction) {
+        case mxConstants.DIRECTION_NORTH:
+            return mxConstants.DIRECTION_SOUTH;
+        case mxConstants.DIRECTION_SOUTH:
+            return mxConstants.DIRECTION_NORTH;
+        case mxConstants.DIRECTION_EAST:
+            return mxConstants.DIRECTION_WEST;
+        case mxConstants.DIRECTION_WEST:
+            return mxConstants.DIRECTION_EAST;
+    }
+
 }
