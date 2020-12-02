@@ -543,7 +543,7 @@ Draw.loadPlugin(function (ui) {
         c.lineTo(x, y);
         c.close();
         c.end();
-        c.stroke();
+        c.FillAndStroke();
 
 
     }
@@ -572,7 +572,7 @@ Draw.loadPlugin(function (ui) {
         c.lineTo(x, y);
         c.close();
         c.end();
-        c.stroke();
+        c.fillAndStroke();
 
     }
     mxCellRenderer.registerShape('ushape', UShape);
