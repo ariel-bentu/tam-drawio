@@ -543,7 +543,7 @@ Draw.loadPlugin(function (ui) {
         c.lineTo(x, y);
         c.close();
         c.end();
-        c.FillAndStroke();
+        c.fillAndStroke();
 
 
     }
