@@ -108,14 +108,17 @@ Draw.loadPlugin(function (ui) {
         [mxConstants.DIRECTION_NORTH]: mxConstants.DIRECTION_EAST,
         [mxConstants.DIRECTION_SOUTH]: mxConstants.DIRECTION_WEST,
         [mxConstants.DIRECTION_EAST]: mxConstants.DIRECTION_NORTH,
-        [mxConstants.DIRECTION_WEST]: mxConstants.DIRECTION_SOUTH
+        [mxConstants.DIRECTION_WEST]: mxConstants.DIRECTION_SOUTH,
+        [mxConstants.NONE]: mxConstants.NONE,
+
     };
 
     const flipDirection = {
         [mxConstants.DIRECTION_NORTH]: mxConstants.DIRECTION_SOUTH,
         [mxConstants.DIRECTION_SOUTH]: mxConstants.DIRECTION_NORTH,
         [mxConstants.DIRECTION_EAST]: mxConstants.DIRECTION_WEST,
-        [mxConstants.DIRECTION_WEST]: mxConstants.DIRECTION_EAST
+        [mxConstants.DIRECTION_WEST]: mxConstants.DIRECTION_EAST,
+        [mxConstants.NONE]: mxConstants.NONE,
     }
 
     const tamUtils = {
@@ -123,7 +126,7 @@ Draw.loadPlugin(function (ui) {
             .split(';')
             .reduce(
                 (acc, cur) => (
-                    (([key, val]) => key && (acc[key] = val))(cur.split('=')), 
+                    (([key, val]) => key && (acc[key] = val))(cur.split('=')),
                     acc
                 ),
                 {}
@@ -224,7 +227,7 @@ Draw.loadPlugin(function (ui) {
             c.setDashed(c.state.dashed, c.state.fixDash);
             c.setShadow(false);
 
-            if (pts.length < 2)  { return; }
+            if (pts.length < 2) { return; }
             const isVertical = mxUtils.getValue(this.style, 'vertical', false);
 
             const prev = c.pointerEventsValue;
@@ -304,8 +307,8 @@ Draw.loadPlugin(function (ui) {
             let cpt = vertLine ?
                 new mxPoint(x, y + lineDirectionCoefficient * circleRadius) :
                 new mxPoint(x - lineDirectionCoefficient * circleRadius, y);
-            ui.editor.setStatus(rectMsg + "--" + JSON.stringify(pts) + "--" + cpt.x + "," + cpt.y)
-            let pts1 = [...pts.slice(0,p0+1), cpt]
+            //ui.editor.setStatus(rectMsg + "--" + JSON.stringify(pts) + "--" + cpt.x + "," + cpt.y)
+            let pts1 = [...pts.slice(0, p0 + 1), cpt]
             drawEdge(pts1);
 
             const strokeWidth = c.getCurrentStrokeWidth();
@@ -326,7 +329,7 @@ Draw.loadPlugin(function (ui) {
                     (vertLine ? new mxPoint(pts[0].x, pts[1].y) : new mxPoint(pts[1].x, pts[0].y)) :
                     pts[pts.length - 1];
 
-            pts1 = [cpt, ...pts.slice(p1, pts.length-1), endPoint];
+            pts1 = [cpt, ...pts.slice(p1, pts.length - 1), endPoint];
             drawEdge(pts1);
 
             c.pointerEventsValue = prev;
@@ -434,7 +437,7 @@ Draw.loadPlugin(function (ui) {
             const dy = isVertical ? radius * 1.8 : 0;
 
             c.setFillColor(this.stroke);
-            for (let i=0; i < 3; i++) {
+            for (let i = 0; i < 3; i++) {
                 c.ellipse(x1 + i * dx, y1 + i * dy, radius, radius);
                 c.fillAndStroke();
             }
@@ -571,9 +574,9 @@ Draw.loadPlugin(function (ui) {
 
         if (!ui.editor.graph.isSelectionEmpty() && !ui.editor.graph.isEditing()) {
 
-            const  cells = ui.editor.graph.getSelectionCells();
+            const cells = ui.editor.graph.getSelectionCells();
             let style = tamUtils.getStyleObject(cells[0].style);
-
+            let isVertical = style.edgeStyle == 'elbowEdgeStyle' ? style.vertical : !style.vertical;
             if (style.shape !== 'useedge') {
                 return;
             }
@@ -594,7 +597,7 @@ Draw.loadPlugin(function (ui) {
                     style.useSignDirection = 'west'
                     break;
                 case 'none':
-                    style.useSignDirection = style.vertical ? 'east' : 'south';
+                    style.useSignDirection = isVertical ? 'east' : 'south';
                     break;
             }
 
