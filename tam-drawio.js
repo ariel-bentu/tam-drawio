@@ -253,15 +253,14 @@ Draw.loadPlugin(function (ui) {
             let rectMsg = ""
             if (cx === -1 || cy === -1) {
                 //uninitialized
-                vertLine = (pts.length === 2) ? isVertical : !isVertical;
-
                 if (pts.length > 2) {
                     p0 = Math.floor(pts.length / 2) - 1;
                     p1 = p0 + 1;
                 }
-
-                x = vertLine ? pts[p0].x : pts[p0].x + (pts[p1].x - pts[p0].x) / 2;
-                y = vertLine ? pts[p0].y + (pts[p1].y - pts[p0].y) / 2 : pts[p0].y;
+                let midPoint = getEdgeMidPoint(pts, isVertical);
+                vertLine = (pts.length === 2) ? isVertical : !isVertical;
+                x = midPoint.x;
+                y = midPoint.y;
             } else {
                 //calculate on-the-line point
                 p0 = 0;
@@ -353,52 +352,52 @@ Draw.loadPlugin(function (ui) {
             let tpts, rpt
 
             switch (useSignPosition) {
-                case 'down':
+                case tamConstants.DOWN:
                     dy = 25;
                     dx = 0;
                     break;
-                case 'left':
+                case tamConstants.LEFT:
                     dy = 0;
                     dx = -25;
 
                     break;
-                case 'right':
+                case tamConstants.RIGHT:
                     dy = 0;
                     dx = -25;
                     break;
-                case 'up':
+                case tamConstants.UP:
                 default:
                     dy = -25;
                     dx = 0;
             }
             switch (useSignDirection) {
-                case 'none':
+                case mxConstants.NONE:
                     tpts = [];
                     rpt = [-5, -5];
                     break;
-                case 'north':
+                case mxConstants.DIRECTION_NORTH:
                     dy += -5;
                     tpts = [[-5, 0], [0, -10], [5, 0], [0, -2]];
                     rpt = [-5, 5]
                     break;
-                case 'south':
+                case mxConstants.DIRECTION_SOUTH:
                     dy += 5;
                     tpts = [[-5, 0], [0, 10], [5, 0], [0, 2]];
                     rpt = [-5, -15]
                     break;
-                case 'west':
+                case mxConstants.DIRECTION_WEST:
                     dx += -5;
                     tpts = [[0, -5], [-10, 0], [0, 5], [-2, 0]];
                     rpt = [5, -5]
                     break;
-                case 'east':
+                case mxConstants.DIRECTION_EAST:
                 default:
                     dx += 5;
                     tpts = [[0, -5], [10, 0], [0, 5], [2, 0]];
                     rpt = [-15, -5]
             }
             c.translate(x + dx, y + dy);
-            if (useSignDirection !== 'none') {
+            if (useSignDirection !== mxConstants.NONE) {
                 c.begin()
 
                 c.moveTo(tpts[0][0], tpts[0][1]);
@@ -551,10 +550,10 @@ Draw.loadPlugin(function (ui) {
 
     // Adds custom sidebar entry
     ui.sidebar.addPalette(sidebar_id, sidebar_title, true, function (content) {
-        content.appendChild(ui.sidebar.createEdgeTemplate('shape=useedge;vertical=true;endArrow=none;useSignPosition=left;useSignDirection=south;dx=0;dy=80;', 0, 160, ''));
-        content.appendChild(ui.sidebar.createEdgeTemplate('shape=useedge;endArrow=none;useSignPosition=up;useSignDirection=east;dx=80;dy=0;', 160, 0, ''));
-        content.appendChild(ui.sidebar.createEdgeTemplate('shape=useedge;vertical=true;edgeStyle=elbowEdgeStyle;elbow=vertical;endArrow=none;useSignPosition=up;useSignDirection=east;dx=35;dy=80;', 70, 160, ''));
-        content.appendChild(ui.sidebar.createEdgeTemplate('shape=useedge;edgeStyle=elbowEdgeStyle;elbow=horizontal;endArrow=none;useSignPosition=left;useSignDirection=south;dx=80;dy=35;', 160, 70, ''));
+        content.appendChild(ui.sidebar.createEdgeTemplate('shape=useedge;vertical=true;endArrow=none;useSignPosition=left;useSignDirection=south;', 0, 160, ''));
+        content.appendChild(ui.sidebar.createEdgeTemplate('shape=useedge;endArrow=none;useSignPosition=up;useSignDirection=east;', 160, 0, ''));
+        content.appendChild(ui.sidebar.createEdgeTemplate('shape=useedge;vertical=true;edgeStyle=elbowEdgeStyle;elbow=vertical;endArrow=none;useSignPosition=up;useSignDirection=east;', 70, 160, ''));
+        content.appendChild(ui.sidebar.createEdgeTemplate('shape=useedge;edgeStyle=elbowEdgeStyle;elbow=horizontal;endArrow=none;useSignPosition=left;useSignDirection=south;', 160, 70, ''));
         content.appendChild(ui.sidebar.createVertexTemplate('rounded=1;whiteSpace=wrap;html=1;arcSize=60;strokeWidth=2;', 90, 40, ''));
         content.appendChild(ui.sidebar.createVertexTemplate('shape=dot3;vertical=true;connectable=0;', 15, 55, ''));
         content.appendChild(ui.sidebar.createVertexTemplate('shape=dot3;connectable=0;', 55, 15, ''));
@@ -568,6 +567,21 @@ Draw.loadPlugin(function (ui) {
     });
 
     mxResources.parse('flipUse=Flip Use Direction');
+
+    function getEdgeMidPoint(pts, isVertical) {
+        let p0 = 0, p1 = 1;
+        let vertLine = (pts.length === 2) ? isVertical : !isVertical;
+
+        if (pts.length > 2) {
+            p0 = Math.floor(pts.length / 2) - 1;
+            p1 = p0 + 1;
+        }
+
+        let x = vertLine ? pts[p0].x : pts[p0].x + (pts[p1].x - pts[p0].x) / 2;
+        let y = vertLine ? pts[p0].y + (pts[p1].y - pts[p0].y) / 2 : pts[p0].y;
+        return new mxPoint(x, y);
+    }
+
 
     // Adds action
     ui.actions.addAction('flipUse', function () {
@@ -617,10 +631,16 @@ Draw.loadPlugin(function (ui) {
         const singleDxDyPoint = (state) => {
             return [
                 createHandle(state, ['dx', 'dy'], function (bounds) {
-                    var dx = Math.max(0, Math.min(bounds.width, mxUtils.getValue(this.state.style, 'dx', 80)));
-                    var dy = Math.max(0, Math.min(bounds.height, mxUtils.getValue(this.state.style, 'dy', 20)));
-
-                    return new mxPoint(bounds.x + dx, bounds.y + dy);
+                    var dx = Math.max(0, Math.min(bounds.width, mxUtils.getValue(this.state.style, 'dx', 0)));
+                    var dy = Math.max(0, Math.min(bounds.height, mxUtils.getValue(this.state.style, 'dy', 0)));
+                    let isVertical = mxUtils.getValue(this.state.style, 'vertical', false)
+                    if (dx == 0 && dy == 0) {
+                        //un initialize
+                        let midPoint = getEdgeMidPoint(state.absolutePoints, isVertical);
+                        dx = midPoint.x - state.x;
+                        dy = midPoint.y - state.y;
+                    }
+                    return new mxPoint(bounds.x + dx + 8, bounds.y + dy - 8);
                 }, function (bounds, pt) {
                     this.state.style['dx'] = Math.round(Math.max(0, Math.min(bounds.width, pt.x - bounds.x)));
                     this.state.style['dy'] = Math.round(Math.max(0, Math.min(bounds.height, pt.y - bounds.y)));
