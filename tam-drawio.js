@@ -143,6 +143,7 @@ Draw.loadPlugin(function (ui) {
 
     class StorageCodec {
         create() {
+
             const cell = new mxCell(
                 '',
                 new mxGeometry(0, 0, 90, 40),
@@ -160,6 +161,25 @@ Draw.loadPlugin(function (ui) {
 
     class VerticalUpdateEdgeCodec {
         create() {
+            // ui.editor.graph.createVertex(ui.editor.graph.getModel().getDefaultParent, "hello", null, 0, 0, 6, 6, 'text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;');
+
+            // const textCell = new mxCell(
+            //     'You need the Tam-Notation extension...',
+            //     new mxGeometry(10, 20, 90, 40), 'text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;');
+            // textCell.vertex = true;
+
+            // var model = ui.editor.graph.getModel();
+            // var parent = ui.editor.graph.getDefaultParent();
+            // var index = model.getChildCount(parent);
+            // model.beginUpdate();
+            // try {
+            //     model.add(parent, textCell, index);
+            // }
+            // finally {
+            //     model.endUpdate();
+            // }
+            //ui.editor.graph.addCells([textCell])
+
             const cell = new mxCell(
                 '',
                 new mxGeometry(0, 0, 30, 80),
@@ -350,24 +370,25 @@ Draw.loadPlugin(function (ui) {
 
             let dx, dy;
             let tpts, rpt
+            const distance = 20;
 
             switch (useSignPosition) {
                 case tamConstants.DOWN:
-                    dy = 25;
+                    dy = distance;
                     dx = 0;
                     break;
                 case tamConstants.LEFT:
                     dy = 0;
-                    dx = -25;
+                    dx = -distance;
 
                     break;
                 case tamConstants.RIGHT:
                     dy = 0;
-                    dx = -25;
+                    dx = -distance;
                     break;
                 case tamConstants.UP:
                 default:
-                    dy = -25;
+                    dy = -distance;
                     dx = 0;
             }
             switch (useSignDirection) {
@@ -447,10 +468,20 @@ Draw.loadPlugin(function (ui) {
         paintVertexShape(c, x, y, w, h) {
             const multiple = mxUtils.getValue(this.style, 'multiple', false);
             const offsetSize = mxUtils.getValue(this.style, 'offsetSize', 8);
-            if (multiple) {
-                drawRect(c, x + offsetSize, y - offsetSize, w, h);
-            }
+
             drawRect(c, x, y, w, h);
+            if (multiple) {
+                //drawRect(c, x + offsetSize, y - offsetSize, w, h);
+                c.begin();
+                c.moveTo(x + offsetSize, y);
+                c.lineTo(x + offsetSize, y - offsetSize);
+                c.lineTo(x + offsetSize + w, y - offsetSize);
+                c.lineTo(x + offsetSize + w, y - offsetSize + h);
+                c.lineTo(x + w, y - offsetSize + h);
+                c.end();
+                c.stroke();
+            }
+
         }
     }
 
@@ -620,12 +651,31 @@ Draw.loadPlugin(function (ui) {
         }
     });
 
+    ui.actions.addAction('toggleMultiplicity', function () {
+
+        if (!ui.editor.graph.isSelectionEmpty() && !ui.editor.graph.isEditing()) {
+            const cells = ui.editor.graph.getSelectionCells();
+            let style = tamUtils.getStyleObject(cells[0].style);
+            if (style.shape == "agent") {
+                let newMultiple = style.multiple ? undefined : "true";
+                cells[0].setStyle(mxUtils.setStyle(cells[0].style, 'multiple', newMultiple));
+                ui.editor.graph.refresh(cells[0]);
+            }
+        }
+    });
+
     ui.toolbar.addSeparator();
     const elt = ui.toolbar.addItem('', 'flipUse');
     elt.firstChild.style.backgroundImage = 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' xmlns:xlink=\'http://www.w3.org/1999/xlink\' version=\'1.1\' width=\'82px\' height=\'82px\' viewBox=\'-0.5 -0.5 82 2\'%3E%3Cg%3E%3Cpath d=\'M 0 10 L 22 10\' fill=\'none\' stroke=\'%23000000\' stroke-miterlimit=\'10\' pointer-events=\'stroke\' stroke-width=\'4\'/%3E%3Cellipse cx=\'40\' cy=\'10\' rx=\'18\' ry=\'18\' fill=\'none\' stroke=\'%23000000\' pointer-events=\'stroke\' stroke-width=\'8\'/%3E%3Cpath d=\'M 58 10 L 80 10\' fill=\'none\' stroke=\'%23000000\' stroke-miterlimit=\'10\' pointer-events=\'stroke\' stroke-width=\'4\'/%3E%3Cpath d=\'M 45 -30 L 55 -25 L 45 -20 L 47 -25 L 45 -30 Z\' fill=\'%23000000\' stroke=\'%23000000\' stroke-miterlimit=\'10\' pointer-events=\'all\'/%3E%3Cg fill=\'%23000000\' font-family=\'Arial,Helvetica\' font-size=\'22px\' font-weight=\'800\'%3E%3Ctext x=\'24.5\' y=\'-19.5\'%3ER%3C/text%3E%3C/g%3E%3C/g%3E%3C/svg%3E")';
     elt.firstChild.style.backgroundPosition = 'center';
     elt.firstChild.style.backgroundSize = 'contain';
     elt.firstChild.style.backgroundRepeat = 'no-repeat';
+
+    const elt2 = ui.toolbar.addItem('', 'toggleMultiplicity');
+    elt2.firstChild.style.backgroundImage = 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' xmlns:xlink=\'http://www.w3.org/1999/xlink\' version=\'1.1\' width=\'82px\' height=\'82px\' viewBox=\'-0.5 -0.5 120 96\'%3E%3Cdefs/%3E%3Cg%3E%3Cpath d=\'M 1 34 L 101 34 L 101 94 L 1 94 L 1 34 Z\' fill=\'none\' stroke=\'%23000000\' stroke-width=\'2\' stroke-miterlimit=\'10\' pointer-events=\'all\'/%3E%3Cpath d=\'M 9 34 L 9 26 L 109 26 L 109 86 L 101 86\' fill=\'none\' stroke=\'%23000000\' stroke-width=\'2\' stroke-miterlimit=\'10\' pointer-events=\'all\'/%3E%3Cpath d=\'M 23.1 9 L 82.9 9\' fill=\'none\' stroke=\'%23000000\' stroke-width=\'3\' stroke-miterlimit=\'10\' pointer-events=\'stroke\'/%3E%3Cpath d=\'M 16.35 9 L 25.35 4.5 L 23.1 9 L 25.35 13.5 Z\' fill=\'%23000000\' stroke=\'%23000000\' stroke-width=\'3\' stroke-miterlimit=\'10\' pointer-events=\'all\'/%3E%3Cpath d=\'M 89.65 9 L 80.65 13.5 L 82.9 9 L 80.65 4.5 Z\' fill=\'%23000000\' stroke=\'%23000000\' stroke-width=\'3\' stroke-miterlimit=\'10\' pointer-events=\'all\'/%3E%3C/g%3E%3C/svg%3E")';
+    elt2.firstChild.style.backgroundPosition = 'center';
+    elt2.firstChild.style.backgroundSize = 'contain';
+    elt2.firstChild.style.backgroundRepeat = 'no-repeat';
 
     if (typeof mxVertexHandler !== 'undefined' && Graph.handleFactory && typeof Graph.handleFactory === "object") {
         const singleDxDyPoint = (state) => {
