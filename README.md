@@ -37,3 +37,4 @@ A drawio plugin which offers TAM notation
 - When using the using-edge (the line with circle and "R" and arrow), you can flip the direction by selecting the edge and pressing the new button on the toolbar (tooltip: Flip Use Direction)
 - Use direction and side, can be controlled by the Style
 - If you send the model to another person, that other person would need the TAM plugin to view it properly
+- You may save a diagram file as "editable vector image (.svg)", then it gets saved as an svg with the drawio diagram embedded. this is useful for embedding into markdown files without maintaining two files - one for the diagram source and one for embedding into markdown.
