@@ -25,6 +25,16 @@ This plugin adds some components to draw.io, which cover the common components u
 - Press `Apply`
 - Restart Drawio
 
+
+> in some cases if you re-install the plugin, you get the error "File Already Exists". then go to the `<appData>/draw.io/plugins` and remove the file manually before re-installing.
+
+```
+<appData> is:
+- %APPDATA%   on Windows
+- $XDG_CONFIG_HOME or ~/.config   on Linux
+- ~/Library/Application Support   on macOS
+```
+
 ### Install in VSCode
 - Assuming you have Drawio vs-code extension. If not: [Get It](https://marketplace.visualstudio.com/items?itemName=hediet.vscode-drawio)
 - Open the Settings

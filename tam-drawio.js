@@ -469,21 +469,24 @@ Draw.loadPlugin(function (ui) {
             const multiple = mxUtils.getValue(this.style, 'multiple', false);
             const offsetSize = mxUtils.getValue(this.style, 'offsetSize', 8);
 
-            drawRect(c, x, y, w, h);
             if (multiple) {
-                //drawRect(c, x + offsetSize, y - offsetSize, w, h);
                 c.begin();
                 c.moveTo(x + offsetSize, y);
-                c.lineTo(x + offsetSize, y - offsetSize);
-                c.lineTo(x + offsetSize + w, y - offsetSize);
-                c.lineTo(x + offsetSize + w, y - offsetSize + h);
-                c.lineTo(x + w, y - offsetSize + h);
+                c.lineTo(x + offsetSize, y + offsetSize);
+                c.lineTo(x + w - offsetSize , y + offsetSize);
+                c.lineTo(x + w - offsetSize , y + h - offsetSize);
+                c.lineTo(x + w, y + h - offsetSize);
+                c.lineTo(x + w, y);
+                c.lineTo(x + w, y);
+                c.lineTo(x + offsetSize, y);
                 c.end();
-                c.stroke();
+                c.fillAndStroke();
             }
+            drawRect(c, x, y + offsetSize, w - offsetSize, h - offsetSize);
 
         }
     }
+
 
     class ActorShape extends mxRectangleShape {
         paintVertexShape(c, x, y, w, h) {
@@ -520,6 +523,10 @@ Draw.loadPlugin(function (ui) {
             c.end();
 
             c.stroke();
+        }
+        getLabelMargins(rect) {
+            return new mxRectangle(0, 2.5 * Math.min(rect.height / 2,
+                Math.round(rect.height / 8) + this.strokewidth - 1), 0, 0);
         }
     }
 
