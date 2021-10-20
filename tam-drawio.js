@@ -473,17 +473,22 @@ Draw.loadPlugin(function (ui) {
                 c.begin();
                 c.moveTo(x + offsetSize, y);
                 c.lineTo(x + offsetSize, y + offsetSize);
-                c.lineTo(x + w - offsetSize , y + offsetSize);
-                c.lineTo(x + w - offsetSize , y + h - offsetSize);
+                c.moveTo(x + w - offsetSize, y + h - offsetSize);
                 c.lineTo(x + w, y + h - offsetSize);
                 c.lineTo(x + w, y);
                 c.lineTo(x + w, y);
                 c.lineTo(x + offsetSize, y);
                 c.end();
                 c.fillAndStroke();
+                drawRect(c, x, y + offsetSize, w - offsetSize, h - offsetSize);
+            } else {
+                drawRect(c, x, y, w, h);
             }
-            drawRect(c, x, y + offsetSize, w - offsetSize, h - offsetSize);
-
+        }
+        getLabelBounds(rect) {
+            const multiple = mxUtils.getValue(this.style, 'multiple', false);
+            const offsetSize = mxUtils.getValue(this.style, 'offsetSize', 8);
+            return new mxRectangle(rect.x, rect.y + (multiple ? offsetSize : 0), rect.width + (multiple ? -offsetSize : 0), rect.height + (multiple ? -offsetSize : 0));
         }
     }
 
