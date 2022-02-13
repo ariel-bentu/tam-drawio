@@ -328,9 +328,10 @@ Draw.loadPlugin(function (ui) {
                 new mxPoint(x - lineDirectionCoefficient * circleRadius, y);
             //ui.editor.setStatus(rectMsg + "--" + JSON.stringify(pts) + "--" + cpt.x + "," + cpt.y)
             let pts1 = [...pts.slice(0, p0 + 1), cpt]
+            const strokeWidth = c.getCurrentStrokeWidth();
+            c.setStrokeWidth(strokeWidth);
             drawEdge(pts1);
 
-            const strokeWidth = c.getCurrentStrokeWidth();
             c.setStrokeWidth(strokeWidth * 2);
             c.ellipse(
                 x - circleRadius,
