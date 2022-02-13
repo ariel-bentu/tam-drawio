@@ -492,12 +492,13 @@ Draw.loadPlugin(function (ui) {
         }
     }
 
-
     class ActorShape extends mxRectangleShape {
         paintVertexShape(c, x, y, w, h) {
             //we maintain aspect ratio
             w = 2 * h / 3
-            drawRect(c, x, y, w, h);
+            const border = mxUtils.getValue(this.style, 'border', true);
+            if (border)
+                drawRect(c, x, y, w, h);
             let margin = mxUtils.getValue(this.style, 'margin', h / 10);
             x += margin / 2;
             y += margin / 2;
@@ -529,10 +530,21 @@ Draw.loadPlugin(function (ui) {
 
             c.stroke();
         }
-        getLabelMargins(rect) {
-            return new mxRectangle(0, 2.5 * Math.min(rect.height / 2,
-                Math.round(rect.height / 8) + this.strokewidth - 1), 0, 0);
-        }
+        // getLabelMargins(rect) {
+        //     var headSize = Math.min(rect.width / 2, rect.height / 3);
+
+        //     return new mxRectangle(-100, headSize * 0.8, 0, 0);
+        // }
+
+        // getLabelBounds(rect) {
+        //     return new mxRectangle(-100, -100, 100, 100);
+        // }
+        // isLabelMovable(){
+        //     setTimeout(() => {
+        //         ui.editor.setStatus("ask")
+        //     }, 1000);
+        //     return true;
+        // }
     }
 
     class LShape extends mxRectangleShape {
@@ -577,6 +589,28 @@ Draw.loadPlugin(function (ui) {
         }
     }
 
+    class EndActivity extends mxDoubleEllipse {
+        paintVertexShape(c, x, y, w, h) {
+            c.ellipse(x, y, w, h);
+            c.stroke();
+            x += w / 5;
+            y += h / 5;
+            w -= 2 * w / 5;
+            h -= 2 * h / 5;
+
+            if (w > 0 && h > 0) {
+                c.ellipse(x, y, w, h);
+                c.fillAndStroke();
+            }
+        }
+    }
+
+    class HideTamComment extends mxText {
+        paintVertexShape(c, x, y, w, h) {
+            
+        }
+    }
+
     // Register codecs
     tamUtils.registerCodec(StorageCodec);
     tamUtils.registerCodec(VerticalUpdateEdgeCodec);
@@ -590,24 +624,117 @@ Draw.loadPlugin(function (ui) {
     mxCellRenderer.registerShape('actor', ActorShape);
     mxCellRenderer.registerShape('lshape', LShape);
     mxCellRenderer.registerShape('ushape', UShape);
+    mxCellRenderer.registerShape('endactivity', EndActivity);
+    mxCellRenderer.registerShape('tamPluginMissing',HideTamComment);
 
     // Adds custom sidebar entry
-    ui.sidebar.addPalette(sidebar_id, sidebar_title, true, function (content) {
-        content.appendChild(ui.sidebar.createEdgeTemplate('shape=useedge;vertical=true;endArrow=none;useSignPosition=left;useSignDirection=south;', 0, 160, ''));
-        content.appendChild(ui.sidebar.createEdgeTemplate('shape=useedge;endArrow=none;useSignPosition=up;useSignDirection=east;', 160, 0, ''));
+    const arrowPrefix = "edgeStyle=elbowEdgeStyle;html=1;labelBackgroundColor=none;rounded=0;";
+
+    Sidebar.prototype.tam = ['Block', 'Class', 'Activity', 'Annotate'];
+
+    ui.sidebar.configuration.push({ id: 'tam', prefix: 'tam', libs: Sidebar.prototype.tam })
+    ui.sidebar.entries.find((e) => e.title === 'Software').entries.push({ title: 'TAM', id: 'tam' }); //TODO image: will show an image on the shapes selection admin ui
+
+    ui.sidebar.setCurrentSearchEntryLibrary('tam', 'tamBlock');
+    ui.sidebar.addPalette('tamBlock', 'TAM / Block', true, function (content) {
+        content.appendChild(ui.sidebar.createEdgeTemplate('shape=useedge;vertical=true;edgeStyle=none;endArrow=none;useSignPosition=left;useSignDirection=south;', 0, 160, '', "Use"));
+        content.appendChild(ui.sidebar.createEdgeTemplate('shape=useedge;endArrow=none;edgeStyle=none;useSignPosition=up;useSignDirection=east;', 160, 0, ''));
         content.appendChild(ui.sidebar.createEdgeTemplate('shape=useedge;vertical=true;edgeStyle=elbowEdgeStyle;elbow=vertical;endArrow=none;useSignPosition=up;useSignDirection=east;', 70, 160, ''));
         content.appendChild(ui.sidebar.createEdgeTemplate('shape=useedge;edgeStyle=elbowEdgeStyle;elbow=horizontal;endArrow=none;useSignPosition=left;useSignDirection=south;', 160, 70, ''));
         content.appendChild(ui.sidebar.createVertexTemplate('rounded=1;whiteSpace=wrap;html=1;arcSize=60;strokeWidth=2;', 90, 40, ''));
-        content.appendChild(ui.sidebar.createVertexTemplate('shape=dot3;vertical=true;connectable=0;', 15, 55, ''));
-        content.appendChild(ui.sidebar.createVertexTemplate('shape=dot3;connectable=0;', 55, 15, ''));
         content.appendChild(ui.sidebar.createEdgeTemplateFromCells([VerticalUpdateEdgeCodec.prototype.create()], 160, 0, 'Vertical Access'));
         content.appendChild(ui.sidebar.createEdgeTemplateFromCells([HorizontalUpdateEdgeCodec.prototype.create()], 160, 0, 'Horizontal Access'));
         content.appendChild(ui.sidebar.createVertexTemplate('shape=agent;offsetSize=8;strokeWidth=2;', 100, 60, ''));
         content.appendChild(ui.sidebar.createVertexTemplate('shape=agent;offsetSize=8;strokeWidth=2;multiple=true;', 100, 60, ''));
-        content.appendChild(ui.sidebar.createVertexTemplate('shape=actor;horizontalLabelPosition=right;align=left;labelPosition=right;strokeWidth=2;', 35, 50, ''));
+        content.appendChild(ui.sidebar.createVertexTemplate('shape=actor;horizontalLabelPosition=right;align=left;labelPosition=right;strokeWidth=2;', 35, 50, '', 'Human Actor'));
+        content.appendChild(ui.sidebar.createVertexTemplate('shape=actor;horizontalLabelPosition=right;align=left;labelPosition=right;strokeWidth=2;border=0', 35, 50, '', 'Human'));
         content.appendChild(ui.sidebar.createVertexTemplate('shape=lshape;dx=20;dy=20;strokeWidth=2;labelPosition=center;verticalLabelPosition=middle;align=center;verticalAlign=top;', 100, 100, ''));
         content.appendChild(ui.sidebar.createVertexTemplate('shape=ushape;dx=20;dy=80;strokeWidth=2;labelPosition=center;verticalLabelPosition=middle;align=center;verticalAlign=bottom;', 100, 100, ''));
+        content.appendChild(ui.sidebar.createEdgeTemplate(arrowPrefix + 'elbow=vertical;endArrow=classic;endFill=1;align=center;', 80, 80, ''));
+        content.appendChild(ui.sidebar.createEdgeTemplate(arrowPrefix + 'elbow=horizontal;endArrow=classic;endFill=1;align=left;', 80, 80, ''));
+        content.appendChild(ui.sidebar.createEdgeTemplate(arrowPrefix + 'elbow=horizontal;endArrow=none;endFill=0;align=left;', 80, 80, ''));
+        content.appendChild(ui.sidebar.createEdgeTemplate(arrowPrefix + 'elbow=vertical;endArrow=none;endFill=0;align=center;', 80, 80, ''));
     });
+
+    ui.sidebar.addPalette('tamAnnotate', 'TAM / Annotate', true, function (content) {
+        content.appendChild(ui.sidebar.createVertexTemplate('rounded=0;whiteSpace=wrap;html=1;strokeWidth=0;strokeColor=none;fillColor=#E6E6E6;align=left;verticalAlign=top;spacingLeft=2;', 140, 80, '', 'Area'));
+        content.appendChild(ui.sidebar.createVertexTemplate('shape=dot3;vertical=true;connectable=0;', 15, 55, ''));
+        content.appendChild(ui.sidebar.createVertexTemplate('shape=dot3;connectable=0;', 55, 15, ''));
+        content.appendChild(ui.sidebar.createEdgeTemplate('edgeStyle=elbowEdgeStyle;dashed=1;dashPattern=5 5;strokeWidth=2;arcSize=0;startArrow=none;endArrow=none;startSize=0;endSize=0;html=1;endFill=0;align=left;resizeWidth=0;rounded=0;', 0, 300, '', 'Border Vertical'))
+        content.appendChild(ui.sidebar.createEdgeTemplate('edgeStyle=elbowEdgeStyle;dashed=1;dashPattern=5 5;strokeWidth=2;arcSize=0;startArrow=none;endArrow=none;startSize=0;endSize=0;html=1;endFill=0;align=center;resizeHeight=0;rounded=0;', 300, 0, '', 'Border Horizontal'))
+        content.appendChild(ui.sidebar.createVertexTemplate('shape=note2;boundedLbl=1;whiteSpace=wrap;html=1;size=10;spacingLeft=2;verticalAlign=top;align=left;fillColor=#FFFFFF;connectable=1', 70, 70, '', 'Note'));
+        content.appendChild(ui.sidebar.createVertexTemplate('shape=curlyBracket;whiteSpace=wrap;html=1;rounded=1;size=0.5;labelPosition=left;verticalLabelPosition=middle;align=right;verticalAlign=middle;', 30, 150, 'Description', 'Left Curly Brace'));
+        content.appendChild(ui.sidebar.createVertexTemplate('shape=curlyBracket;whiteSpace=wrap;html=1;rounded=1;flipH=1;labelPosition=right;verticalLabelPosition=middle;align=left;verticalAlign=middle;', 30, 150, 'Description', 'Right Curly Brace'));
+        content.appendChild(ui.sidebar.createVertexTemplate('shape=curlyBracket;whiteSpace=wrap;html=1;rounded=1;flipH=1;labelPosition=center;verticalLabelPosition=top;align=center;verticalAlign=bottom;flipV=0;direction=south;', 150, 30, 'Description', 'Top Curly Brace'));
+        content.appendChild(ui.sidebar.createVertexTemplate('shape=curlyBracket;whiteSpace=wrap;html=1;rounded=1;flipH=1;labelPosition=center;verticalLabelPosition=bottom;align=center;verticalAlign=top;flipV=0;direction=north;', 150, 30, 'Description', 'Bottom Curly Brace'));
+    });
+
+    ui.sidebar.addPalette('tamActivity', 'TAM / Activity', false, function (content) {
+        content.appendChild(ui.sidebar.createVertexTemplate('rounded=1;whiteSpace=wrap;html=1;strokeWidth=2;arcSize=37', 90, 40, '', 'Action'));
+        content.appendChild(ui.sidebar.createVertexTemplate('ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#000000;', 30, 30, '', 'Start of Activity'));
+        content.appendChild(ui.sidebar.createVertexTemplate('shape=endactivity;strokeWidth=2;fillColor=#000000;', 30, 30, '', 'End of Activity'));
+        content.appendChild(ui.sidebar.createVertexTemplate('rhombus;html=1;strokeWidth=2;', 30, 30, '', 'Decision or Merge'));
+        content.appendChild(ui.sidebar.createEdgeTemplate(arrowPrefix + 'elbow=vertical;endArrow=classic;endFill=1;align=center;', 80, 80, ''));
+        content.appendChild(ui.sidebar.createEdgeTemplate(arrowPrefix + 'elbow=horizontal;endArrow=classic;endFill=1;align=left;', 80, 80, ''));
+        content.appendChild(ui.sidebar.createEdgeTemplate('edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;startArrow=none;startFill=0;endArrow=classic;endFill=1;startSize=6;endSize=6;align=center;fontSize=12;labelBackgroundColor=none;', 40, 40, '', 'Arrow'));
+        content.appendChild(ui.sidebar.createVertexTemplate('line;strokeWidth=13;html=1;fillColor=default;', 120, 10, '', 'Fork or Join'));
+        content.appendChild(ui.sidebar.createVertexTemplate('shape=sumEllipse;perimeter=ellipsePerimeter;whiteSpace=wrap;html=1;backgroundOutline=1;strokeWidth=2;', 30, 30, '', 'End of Flow'));
+        content.appendChild(ui.sidebar.createVertexTemplate('rounded=0;whiteSpace=wrap;html=1;strokeWidth=2;fillColor=default;', 90, 40, '', 'State'));
+    });
+
+    ui.sidebar.addPalette('tamClass', 'TAM / Class', false, function (content) {
+        content.appendChild(ui.sidebar.createVertexTemplate('shape=folder;fontStyle=1;align=left;spacingLeft=2;boundedLbl=1;labelInHeader=1;container=1;collapsible=0;recursiveResize=0;tabWidth=100;tabHeight=20;tabPosition=left;html=1;fontSize=12;fillColor=#E6E6E6;strokeWidth=2;', 250, 140, 'package', 'Class'));
+        content.appendChild(ui.sidebar.createVertexTemplate('rounded=0;whiteSpace=wrap;html=1;strokeWidth=2;', 140, 70, '', 'Class'));
+        // Add Class with items
+        var field = new mxCell('List Item', new mxGeometry(0, 0, 60, 26), 'text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;');
+        field.vertex = true;
+        const cell = new mxCell('Class', new mxGeometry(0, 0, 140, 110),
+            'swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=26;fillColor=none;horizontalStack=0;' +
+            'resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;');
+        cell.vertex = true;
+        cell.insert(ui.sidebar.cloneCell(field, 'Attribute 1'));
+        cell.insert(ui.sidebar.cloneCell(field, 'Operation 1'));
+
+        content.appendChild(ui.sidebar.createVertexTemplateFromCells([cell], cell.geometry.width, cell.geometry.height, '', 'Class with compartments'));
+
+        const edgeTemplate = new mxCell('', new mxGeometry(0, 0, 80, 80),
+            'edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;endArrow=0;endFill=0;startSize=15;endSize=15;align=center;fontSize=12;labelBackgroundColor=none;');
+        edgeTemplate.geometry.setTerminalPoint(new mxPoint(0, 0), true);
+        edgeTemplate.geometry.setTerminalPoint(new mxPoint(80, 80), false);
+        edgeTemplate.geometry.relative = true;
+        edgeTemplate.edge = true;
+
+
+        var cell0 = new mxCell('x..y', new mxGeometry(1, 0, 0, 0), 'edgeLabel;resizable=0;html=1;align=right;verticalAlign=bottom;');
+        cell0.geometry.relative = true;
+        cell0.setConnectable(false);
+        cell0.vertex = true;
+        cell0.geometry.offset = new mxPoint(-3, 1);
+        edgeTemplate.insert(cell0);
+
+        var cell1 = new mxCell('x..y', new mxGeometry(-1, 0, 0, 0), 'edgeLabel;resizable=0;html=1;align=left;verticalAlign=bottom;');
+        cell1.geometry.relative = true;
+        cell1.setConnectable(false);
+        cell1.vertex = true;
+        cell1.geometry.offset = new mxPoint(-1, -3);
+        edgeTemplate.insert(cell1);
+
+        const e1 = edgeTemplate; 
+        const origStyle = e1.style;
+        e1.style = origStyle + ';startArrow=none;startFill=0;'
+        content.appendChild(ui.sidebar.createEdgeTemplateFromCells([e1], e1.geometry.width, e1.geometry.height, '', 'Association'));
+        
+        e1.style = origStyle + ';startArrow=diamondThin;startFill=0;'
+        content.appendChild(ui.sidebar.createEdgeTemplateFromCells([e1], e1.geometry.width, e1.geometry.height, '', 'Aggregation'));
+
+        e1.style = origStyle + ';startArrow=diamondThin;startFill=1;'
+        content.appendChild(ui.sidebar.createEdgeTemplateFromCells([e1], e1.geometry.width, e1.geometry.height, '', 'Composition'));
+
+        content.appendChild(ui.sidebar.createEdgeTemplate('endArrow=block;html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;endFill=0;strokeWidth=1;endSize=14', 80, 80, '', 'Specialization'));
+    });
+
+    ui.sidebar.setCurrentSearchEntryLibrary();
+
 
     mxResources.parse('flipUse=Flip Use Direction');
 
