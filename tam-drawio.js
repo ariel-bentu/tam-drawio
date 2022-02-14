@@ -1,6 +1,14 @@
+const config = localStorage.getItem(".configuration");
+let addPluginMissingLabel = true;
+
+if (config) {
+    try {
+        const confObj = JSON.parse(config);
+        addPluginMissingLabel = (confObj?.tam?.addPluginMissingLabel !== false);
+    } catch (e) { }
+}
+
 Draw.loadPlugin(function (ui) {
-    const sidebar_id = 'TAM';
-    const sidebar_title = 'TAM Notation';
 
     function drawArrow(c, x1, y1, x2, y2, isVertical, isLeftUp, startArrow, endArrow) {
         let cWidth = isLeftUp ? -10 : 10;
@@ -161,24 +169,6 @@ Draw.loadPlugin(function (ui) {
 
     class VerticalUpdateEdgeCodec {
         create() {
-            // ui.editor.graph.createVertex(ui.editor.graph.getModel().getDefaultParent, "hello", null, 0, 0, 6, 6, 'text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;');
-
-            // const textCell = new mxCell(
-            //     'You need the Tam-Notation extension...',
-            //     new mxGeometry(10, 20, 90, 40), 'text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;');
-            // textCell.vertex = true;
-
-            // var model = ui.editor.graph.getModel();
-            // var parent = ui.editor.graph.getDefaultParent();
-            // var index = model.getChildCount(parent);
-            // model.beginUpdate();
-            // try {
-            //     model.add(parent, textCell, index);
-            // }
-            // finally {
-            //     model.endUpdate();
-            // }
-            //ui.editor.graph.addCells([textCell])
 
             const cell = new mxCell(
                 '',
@@ -216,6 +206,10 @@ Draw.loadPlugin(function (ui) {
     }
 
     class UpdateEdgeShape extends mxConnector {
+        constructor() {
+            super();
+            initPluginMissingLabel(ui);
+        }
         paintEdgeShape(c, pts, rounded) {
             c.setFillColor(this.stroke);
             c.setDashed(c.state.dashed, c.state.fixDash);
@@ -243,6 +237,10 @@ Draw.loadPlugin(function (ui) {
     }
 
     class UseEdgeShape extends mxConnector {
+        constructor() {
+            super();
+            initPluginMissingLabel(ui);
+        }
         paintEdgeShape(c, pts, rounded) {
             c.setDashed(c.state.dashed, c.state.fixDash);
             c.setShadow(false);
@@ -328,10 +326,9 @@ Draw.loadPlugin(function (ui) {
                 new mxPoint(x - lineDirectionCoefficient * circleRadius, y);
             //ui.editor.setStatus(rectMsg + "--" + JSON.stringify(pts) + "--" + cpt.x + "," + cpt.y)
             let pts1 = [...pts.slice(0, p0 + 1), cpt]
-            const strokeWidth = c.getCurrentStrokeWidth();
-            c.setStrokeWidth(strokeWidth);
             drawEdge(pts1);
 
+            const strokeWidth = c.getCurrentStrokeWidth();
             c.setStrokeWidth(strokeWidth * 2);
             c.ellipse(
                 x - circleRadius,
@@ -449,6 +446,10 @@ Draw.loadPlugin(function (ui) {
     }
 
     class Dot3Shape extends mxCylinder {
+        constructor() {
+            super();
+            initPluginMissingLabel(ui);
+        }
         paintVertexShape(c, x, y, w, h) {
             const isVertical = mxUtils.getValue(this.style, 'vertical', false);
             const radius = isVertical ? 2 * w / 3 : 2 * h / 3;
@@ -466,6 +467,10 @@ Draw.loadPlugin(function (ui) {
     }
 
     class AgentShape extends mxRectangleShape {
+        constructor() {
+            super();
+            initPluginMissingLabel(ui);
+        }
         paintVertexShape(c, x, y, w, h) {
             const multiple = mxUtils.getValue(this.style, 'multiple', false);
             const offsetSize = mxUtils.getValue(this.style, 'offsetSize', 8);
@@ -494,6 +499,10 @@ Draw.loadPlugin(function (ui) {
     }
 
     class ActorShape extends mxRectangleShape {
+        constructor() {
+            super();
+            initPluginMissingLabel(ui);
+        }
         paintVertexShape(c, x, y, w, h) {
             //we maintain aspect ratio
             w = 2 * h / 3
@@ -531,24 +540,13 @@ Draw.loadPlugin(function (ui) {
 
             c.stroke();
         }
-        // getLabelMargins(rect) {
-        //     var headSize = Math.min(rect.width / 2, rect.height / 3);
-
-        //     return new mxRectangle(-100, headSize * 0.8, 0, 0);
-        // }
-
-        // getLabelBounds(rect) {
-        //     return new mxRectangle(-100, -100, 100, 100);
-        // }
-        // isLabelMovable(){
-        //     setTimeout(() => {
-        //         ui.editor.setStatus("ask")
-        //     }, 1000);
-        //     return true;
-        // }
     }
 
     class LShape extends mxRectangleShape {
+        constructor() {
+            super();
+            initPluginMissingLabel(ui);
+        }
         paintVertexShape(c, x, y, w, h) {
             const margin = mxUtils.getValue(this.style, 'margin', h / 10);
             const dx = mxUtils.getValue(this.style, 'dx', 80);
@@ -569,6 +567,10 @@ Draw.loadPlugin(function (ui) {
     }
 
     class UShape extends mxRectangleShape {
+        constructor() {
+            super();
+            initPluginMissingLabel(ui);
+        }
         paintVertexShape(c, x, y, w, h) {
             const margin = mxUtils.getValue(this.style, 'margin', h / 10);
             const dx = mxUtils.getValue(this.style, 'dx', 20);
@@ -591,6 +593,10 @@ Draw.loadPlugin(function (ui) {
     }
 
     class EndActivity extends mxDoubleEllipse {
+        constructor() {
+            super();
+            initPluginMissingLabel(ui);
+        }
         paintVertexShape(c, x, y, w, h) {
             c.ellipse(x, y, w, h);
             c.stroke();
@@ -606,11 +612,16 @@ Draw.loadPlugin(function (ui) {
         }
     }
 
+
+
     class HideTamComment extends mxText {
-        paintVertexShape(c, x, y, w, h) {
-            
+        paint(c, update) {
+            if (this?.style?.shape !== 'tamPluginMissing') {
+                mxText.prototype.paint.call(this, c, update);
+            }
         }
     }
+    mxCellRenderer.prototype.defaultTextShape = HideTamComment
 
     // Register codecs
     tamUtils.registerCodec(StorageCodec);
@@ -626,7 +637,6 @@ Draw.loadPlugin(function (ui) {
     mxCellRenderer.registerShape('lshape', LShape);
     mxCellRenderer.registerShape('ushape', UShape);
     mxCellRenderer.registerShape('endactivity', EndActivity);
-    mxCellRenderer.registerShape('tamPluginMissing',HideTamComment);
 
     // Adds custom sidebar entry
     const arrowPrefix = "edgeStyle=elbowEdgeStyle;html=1;labelBackgroundColor=none;rounded=0;";
@@ -720,11 +730,11 @@ Draw.loadPlugin(function (ui) {
         cell1.geometry.offset = new mxPoint(-1, -3);
         edgeTemplate.insert(cell1);
 
-        const e1 = edgeTemplate; 
+        const e1 = edgeTemplate;
         const origStyle = e1.style;
         e1.style = origStyle + ';startArrow=none;startFill=0;'
         content.appendChild(ui.sidebar.createEdgeTemplateFromCells([e1], e1.geometry.width, e1.geometry.height, '', 'Association'));
-        
+
         e1.style = origStyle + ';startArrow=diamondThin;startFill=0;'
         content.appendChild(ui.sidebar.createEdgeTemplateFromCells([e1], e1.geometry.width, e1.geometry.height, '', 'Aggregation'));
 
@@ -843,3 +853,28 @@ Draw.loadPlugin(function (ui) {
         Graph.handleFactory['useedge'] = singleDxDyPoint;
     }
 });
+
+function initPluginMissingLabel(ui) {
+    if (addPluginMissingLabel) {
+        const root = ui.currentPage?.root;
+        if (root && root.children[0] && root.children[0].children && root.children[0].children) {
+            const pageElems = root.children[0].children;
+            const missingLabel = pageElems.find((child) => child?.style?.includes('tamPluginMissing'));
+            if (!missingLabel) {
+                let maxX = 250, maxY = 250
+                pageElems.forEach((child) => {
+                    if (child.geometry) {
+                        maxX = Math.max(child.geometry.x, maxX);
+                        maxY = Math.max(child.geometry.y + child.geometry.h, maxY);
+                    }
+                })
+                const newLabelMissing = new mxCell("Best viewed with the <a href=\"https://github.com/ariel-bentu/tam-drawio\">TAM plugin</a>",
+                    new mxGeometry(maxX + 30, maxY + 30, 200, 25), "text;html=1;shape=tamPluginMissing;");
+                newLabelMissing.setVertex(true);
+                newLabelMissing.setConnectable(false);
+                root.children[0].insert(newLabelMissing)
+            }
+
+        }
+    }
+}

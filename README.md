@@ -19,11 +19,13 @@ This plugin adds some components to draw.io, which cover the common components u
 
 ### Install in draw.io desktop
 
-- Goto Menu `Extra->Plugins...`
+- Goto Menu `Extras->Plugins...`
 - Press `Add`
 - browse and select `tam-drawio.js`
 - Press `Apply`
 - Restart Drawio
+
+
 
 
 > in some cases if you re-install the plugin, you get the error "File Already Exists". then go to the `<appData>/draw.io/plugins` and remove the file manually before re-installing.
@@ -56,10 +58,35 @@ This plugin adds some components to draw.io, which cover the common components u
 - This seems to be blocked by an allowed-list burned in app.diagrams.net.
 - If anyone has an idea how to change that please speak-up
 
+### Configuration:
+- Adding hidden text in the model for those who do not have the plugin:
+
+#### Desktop version
+Menu Extras --> Configuration
+```json
+{
+  "tam": {
+    "addPluginMissingLabel": true
+  }
+}
+```
+
+#### VSCode
+this is blocked at the moment. (https://github.com/hediet/vscode-drawio/issues/298)
+So for now, if you wish to disable this functionality, please change in line 2:
+```javascript
+let addPluginMissingLabel = false;
+```
+
+
 ## Usage tips
-- When using the using-edge (the line with circle and "R" and arrow), you can flip the direction by selecting the edge and pressing the new button on the toolbar (tooltip: Flip Use Direction)
-- Use direction and side, can be controlled by the Style
-- If you send the model to another person, that other person would need the TAM plugin to view it properly
+- When using the using-edge (the line with circle and "R" and arrow), you can flip the direction by selecting the edge and pressing the new button on the toolbar (tooltip: Flip Use Direction).
+- Use direction and side, can be controlled by the Style.
+- If you send the model to another person, that other person would need the TAM plugin to view it properly.
+
+Therefore, the plugin adds a hidden text saying: `Best viewed with the TAM plugin` with a link to this repo. This text field is hidden as long as you have the plugin installed. Anyone without a plugin, will see this text item. (this is also hidden in the svg representation of a model).
+
+To disable this behavior, see the configuration section above
 - You may save a diagram file as "editable vector image (.svg)", then it gets saved as an svg with the drawio diagram embedded. this is useful for embedding into markdown files without maintaining two files - one for the diagram source and one for embedding into markdown.
 
 ## Contribution
