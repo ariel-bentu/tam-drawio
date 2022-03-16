@@ -55,8 +55,14 @@ This plugin adds some components to draw.io, which cover the common components u
 - Allow and you are good to go
 
 ### Install in app.diagrams.net
-- This seems to be blocked by an allowed-list burned in app.diagrams.net.
-- If anyone has an idea how to change that please speak-up
+- `app.diagrams.net` has restricted allow-list for the plugin source domains and script checksums, 
+  which prevents plugin from being added in a standard way (via `Extras --> Plugins...`)
+- As a workaround the [bookmarklet](https://en.wikipedia.org/wiki/Bookmarklet) may be used. 
+    - Navigate to the [page with bookmarklet link](https://micellius.github.io/tam-plugin/) and
+      drag the link to the bookmark bar of your  browser.
+    - Every time you visit https://app.diagrams.net, click on the bookmark before you open
+      or create new diagram. That will install plugin for the current editor session.
+- If anyone has an idea how to permanently enable plugin in `app.diagrams.net`, please speak-up
 
 ### Configuration:
 - Adding hidden text in the model for those who do not have the plugin:
@@ -65,19 +71,23 @@ This plugin adds some components to draw.io, which cover the common components u
 Menu Extras --> Configuration
 ```json
 {
-  "tam": {
-    "addPluginMissingLabel": true
+  "globalVars": {
+    "tam": {
+      "addPluginMissingLabel": true
+    }
   }
 }
 ```
 
 #### VSCode
-this is blocked at the moment. (https://github.com/hediet/vscode-drawio/issues/298)
-So for now, if you wish to disable this functionality, please change in line 2:
-```javascript
-let addPluginMissingLabel = false;
+Add the following entry in the VSCode `settings.json` (<kbd>F1</kbd> --> `Preferences: Open Settings (JSON)`)
 ```
-
+"hediet.vscode-drawio.globalVars": {
+  "tam": {
+    "addPluginMissingLabel": true
+  }
+}
+```
 
 ## Usage tips
 - When using the using-edge (the line with circle and "R" and arrow), you can flip the direction by selecting the edge and pressing the new button on the toolbar (tooltip: Flip Use Direction).
