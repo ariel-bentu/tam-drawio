@@ -58,7 +58,7 @@ This plugin adds some components to draw.io, which cover the common components u
 - `app.diagrams.net` has restricted allow-list for the plugin source domains and script checksums, 
   which prevents plugin from being added in a standard way (via `Extras --> Plugins...`)
 - As a workaround the [bookmarklet](https://en.wikipedia.org/wiki/Bookmarklet) may be used. 
-    - Navigate to the [page with bookmarklet link](https://micellius.github.io/tam-plugin/) and
+    - Navigate to the [page with bookmarklet link](https://micellius.github.io/tam-drawio/) and
       drag the link to the bookmark bar of your  browser.
     - Every time you visit https://app.diagrams.net, click on the bookmark before you open
       or create new diagram. That will install plugin for the current editor session.
