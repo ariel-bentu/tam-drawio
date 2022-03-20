@@ -1,14 +1,42 @@
-const config = localStorage.getItem(".configuration");
-let addPluginMissingLabel = true;
-
-if (config) {
-    try {
-        const confObj = JSON.parse(config);
-        addPluginMissingLabel = (confObj?.tam?.addPluginMissingLabel !== false);
-    } catch (e) { }
-}
-
 Draw.loadPlugin(function (ui) {
+    
+    function createMissingLabel(page, x, y, width, height) {
+        const newLabelMissing = new mxCell("Best viewed with the <a href=\"https://github.com/ariel-bentu/tam-drawio\">TAM plugin</a>",
+            new mxGeometry(x, y, width, height), "text;html=1;shape=tamPluginMissing;");
+        newLabelMissing.setVertex(true);
+        newLabelMissing.setConnectable(false);
+        page.insert(newLabelMissing);
+    }
+
+    function updateMissingLabel(label, x, y, width, height) {
+        label.setGeometry(new mxGeometry(x, y, width, height));
+    }
+
+    function initPluginMissingLabel(ui) {
+        if (config.addPluginMissingLabel) {
+            const page = ui.currentPage?.root?.children?.[0];
+            const pageElems = page?.children;
+            if (pageElems) {
+                let maxX = 0, maxY = 0;
+                pageElems.forEach((child) => {
+                    if (child.geometry && !child?.style?.includes('tamPluginMissing')) {
+                        maxX = Math.max(child.geometry.x + child.geometry.width, maxX);
+                        maxY = Math.max(child.geometry.y + child.geometry.height, maxY);
+                    }
+                })
+                const missingLabel = pageElems.find((child) => child?.style?.includes('tamPluginMissing'));
+                const missingLabelWidth = 200;
+                const missingLabelHeight = 25;
+                const missingLabelX = Math.max(0, (maxX - missingLabelWidth) / 2);
+                const missingLabelY = maxY + missingLabelHeight + 5;
+                if (missingLabel) {
+                    updateMissingLabel(missingLabel, missingLabelX, missingLabelY, missingLabelWidth, missingLabelHeight);
+                } else {
+                    createMissingLabel(page, missingLabelX, missingLabelY, missingLabelWidth, missingLabelHeight);
+                }
+            }
+        }
+    }
 
     function drawArrow(c, x1, y1, x2, y2, isVertical, isLeftUp, startArrow, endArrow) {
         let cWidth = isLeftUp ? -10 : 10;
@@ -97,6 +125,13 @@ Draw.loadPlugin(function (ui) {
 
         return handle;
     }
+
+    const config = Object.assign(
+        // defaults
+        { addPluginMissingLabel: true },
+        // user settings
+        Editor?.globalVars?.tam
+    );
 
     const tamConstants = {
         UP: 'up',
@@ -650,8 +685,8 @@ Draw.loadPlugin(function (ui) {
     ui.sidebar.addPalette('tamBlock', 'TAM / Block', true, function (content) {
         content.appendChild(ui.sidebar.createEdgeTemplate('shape=useedge;vertical=true;edgeStyle=none;endArrow=none;useSignPosition=left;useSignDirection=south;', 0, 160, '', "Use"));
         content.appendChild(ui.sidebar.createEdgeTemplate('shape=useedge;endArrow=none;edgeStyle=none;useSignPosition=up;useSignDirection=east;', 160, 0, ''));
-        content.appendChild(ui.sidebar.createEdgeTemplate('shape=useedge;vertical=true;edgeStyle=elbowEdgeStyle;elbow=vertical;endArrow=none;useSignPosition=up;useSignDirection=east;', 70, 160, ''));
-        content.appendChild(ui.sidebar.createEdgeTemplate('shape=useedge;edgeStyle=elbowEdgeStyle;elbow=horizontal;endArrow=none;useSignPosition=left;useSignDirection=south;', 160, 70, ''));
+        content.appendChild(ui.sidebar.createEdgeTemplate('rounded=1;shape=useedge;vertical=true;edgeStyle=elbowEdgeStyle;elbow=vertical;endArrow=none;useSignPosition=up;useSignDirection=east;', 70, 160, ''));
+        content.appendChild(ui.sidebar.createEdgeTemplate('rounded=1;shape=useedge;edgeStyle=elbowEdgeStyle;elbow=horizontal;endArrow=none;useSignPosition=left;useSignDirection=south;', 160, 70, ''));
         content.appendChild(ui.sidebar.createVertexTemplate('rounded=1;whiteSpace=wrap;html=1;arcSize=60;strokeWidth=2;', 90, 40, ''));
         content.appendChild(ui.sidebar.createEdgeTemplateFromCells([VerticalUpdateEdgeCodec.prototype.create()], 160, 0, 'Vertical Access'));
         content.appendChild(ui.sidebar.createEdgeTemplateFromCells([HorizontalUpdateEdgeCodec.prototype.create()], 160, 0, 'Horizontal Access'));
@@ -816,13 +851,13 @@ Draw.loadPlugin(function (ui) {
 
     ui.toolbar.addSeparator();
     const elt = ui.toolbar.addItem('', 'flipUse');
-    elt.firstChild.style.backgroundImage = 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' xmlns:xlink=\'http://www.w3.org/1999/xlink\' version=\'1.1\' width=\'82px\' height=\'82px\' viewBox=\'-0.5 -0.5 82 2\'%3E%3Cg%3E%3Cpath d=\'M 0 10 L 22 10\' fill=\'none\' stroke=\'%23000000\' stroke-miterlimit=\'10\' pointer-events=\'stroke\' stroke-width=\'4\'/%3E%3Cellipse cx=\'40\' cy=\'10\' rx=\'18\' ry=\'18\' fill=\'none\' stroke=\'%23000000\' pointer-events=\'stroke\' stroke-width=\'8\'/%3E%3Cpath d=\'M 58 10 L 80 10\' fill=\'none\' stroke=\'%23000000\' stroke-miterlimit=\'10\' pointer-events=\'stroke\' stroke-width=\'4\'/%3E%3Cpath d=\'M 45 -30 L 55 -25 L 45 -20 L 47 -25 L 45 -30 Z\' fill=\'%23000000\' stroke=\'%23000000\' stroke-miterlimit=\'10\' pointer-events=\'all\'/%3E%3Cg fill=\'%23000000\' font-family=\'Arial,Helvetica\' font-size=\'22px\' font-weight=\'800\'%3E%3Ctext x=\'24.5\' y=\'-19.5\'%3ER%3C/text%3E%3C/g%3E%3C/g%3E%3C/svg%3E")';
+    elt.firstChild.style.backgroundImage = 'url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHhtbG5zOnhsaW5rPSdodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rJyB2ZXJzaW9uPScxLjEnIHdpZHRoPSc4MnB4JyBoZWlnaHQ9JzgycHgnIHZpZXdCb3g9Jy0wLjUgLTAuNSA4MiAyJz48Zz48cGF0aCBkPSdNIDAgMTAgTCAyMiAxMCcgZmlsbD0nbm9uZScgc3Ryb2tlPScjMDAwMDAwJyBzdHJva2UtbWl0ZXJsaW1pdD0nMTAnIHBvaW50ZXItZXZlbnRzPSdzdHJva2UnIHN0cm9rZS13aWR0aD0nNCcvPjxlbGxpcHNlIGN4PSc0MCcgY3k9JzEwJyByeD0nMTgnIHJ5PScxOCcgZmlsbD0nbm9uZScgc3Ryb2tlPScjMDAwMDAwJyBwb2ludGVyLWV2ZW50cz0nc3Ryb2tlJyBzdHJva2Utd2lkdGg9JzgnLz48cGF0aCBkPSdNIDU4IDEwIEwgODAgMTAnIGZpbGw9J25vbmUnIHN0cm9rZT0nIzAwMDAwMCcgc3Ryb2tlLW1pdGVybGltaXQ9JzEwJyBwb2ludGVyLWV2ZW50cz0nc3Ryb2tlJyBzdHJva2Utd2lkdGg9JzQnLz48cGF0aCBkPSdNIDQ1IC0zMCBMIDU1IC0yNSBMIDQ1IC0yMCBMIDQ3IC0yNSBMIDQ1IC0zMCBaJyBmaWxsPScjMDAwMDAwJyBzdHJva2U9JyMwMDAwMDAnIHN0cm9rZS1taXRlcmxpbWl0PScxMCcgcG9pbnRlci1ldmVudHM9J2FsbCcvPjxnIGZpbGw9JyMwMDAwMDAnIGZvbnQtZmFtaWx5PSdBcmlhbCxIZWx2ZXRpY2EnIGZvbnQtc2l6ZT0nMjJweCcgZm9udC13ZWlnaHQ9JzgwMCc+PHRleHQgeD0nMjQuNScgeT0nLTE5LjUnPlI8L3RleHQ+PC9nPjwvZz48L3N2Zz4=")';
     elt.firstChild.style.backgroundPosition = 'center';
     elt.firstChild.style.backgroundSize = 'contain';
     elt.firstChild.style.backgroundRepeat = 'no-repeat';
 
     const elt2 = ui.toolbar.addItem('', 'toggleMultiplicity');
-    elt2.firstChild.style.backgroundImage = 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' xmlns:xlink=\'http://www.w3.org/1999/xlink\' version=\'1.1\' width=\'82px\' height=\'82px\' viewBox=\'-0.5 -0.5 120 96\'%3E%3Cdefs/%3E%3Cg%3E%3Cpath d=\'M 1 34 L 101 34 L 101 94 L 1 94 L 1 34 Z\' fill=\'none\' stroke=\'%23000000\' stroke-width=\'2\' stroke-miterlimit=\'10\' pointer-events=\'all\'/%3E%3Cpath d=\'M 9 34 L 9 26 L 109 26 L 109 86 L 101 86\' fill=\'none\' stroke=\'%23000000\' stroke-width=\'2\' stroke-miterlimit=\'10\' pointer-events=\'all\'/%3E%3Cpath d=\'M 23.1 9 L 82.9 9\' fill=\'none\' stroke=\'%23000000\' stroke-width=\'3\' stroke-miterlimit=\'10\' pointer-events=\'stroke\'/%3E%3Cpath d=\'M 16.35 9 L 25.35 4.5 L 23.1 9 L 25.35 13.5 Z\' fill=\'%23000000\' stroke=\'%23000000\' stroke-width=\'3\' stroke-miterlimit=\'10\' pointer-events=\'all\'/%3E%3Cpath d=\'M 89.65 9 L 80.65 13.5 L 82.9 9 L 80.65 4.5 Z\' fill=\'%23000000\' stroke=\'%23000000\' stroke-width=\'3\' stroke-miterlimit=\'10\' pointer-events=\'all\'/%3E%3C/g%3E%3C/svg%3E")';
+    elt2.firstChild.style.backgroundImage = 'url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHhtbG5zOnhsaW5rPSdodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rJyB2ZXJzaW9uPScxLjEnIHdpZHRoPSc4MnB4JyBoZWlnaHQ9JzgycHgnIHZpZXdCb3g9Jy0wLjUgLTAuNSAxMjAgOTYnPjxkZWZzLz48Zz48cGF0aCBkPSdNIDEgMzQgTCAxMDEgMzQgTCAxMDEgOTQgTCAxIDk0IEwgMSAzNCBaJyBmaWxsPSdub25lJyBzdHJva2U9JyMwMDAwMDAnIHN0cm9rZS13aWR0aD0nMicgc3Ryb2tlLW1pdGVybGltaXQ9JzEwJyBwb2ludGVyLWV2ZW50cz0nYWxsJy8+PHBhdGggZD0nTSA5IDM0IEwgOSAyNiBMIDEwOSAyNiBMIDEwOSA4NiBMIDEwMSA4NicgZmlsbD0nbm9uZScgc3Ryb2tlPScjMDAwMDAwJyBzdHJva2Utd2lkdGg9JzInIHN0cm9rZS1taXRlcmxpbWl0PScxMCcgcG9pbnRlci1ldmVudHM9J2FsbCcvPjxwYXRoIGQ9J00gMjMuMSA5IEwgODIuOSA5JyBmaWxsPSdub25lJyBzdHJva2U9JyMwMDAwMDAnIHN0cm9rZS13aWR0aD0nMycgc3Ryb2tlLW1pdGVybGltaXQ9JzEwJyBwb2ludGVyLWV2ZW50cz0nc3Ryb2tlJy8+PHBhdGggZD0nTSAxNi4zNSA5IEwgMjUuMzUgNC41IEwgMjMuMSA5IEwgMjUuMzUgMTMuNSBaJyBmaWxsPScjMDAwMDAwJyBzdHJva2U9JyMwMDAwMDAnIHN0cm9rZS13aWR0aD0nMycgc3Ryb2tlLW1pdGVybGltaXQ9JzEwJyBwb2ludGVyLWV2ZW50cz0nYWxsJy8+PHBhdGggZD0nTSA4OS42NSA5IEwgODAuNjUgMTMuNSBMIDgyLjkgOSBMIDgwLjY1IDQuNSBaJyBmaWxsPScjMDAwMDAwJyBzdHJva2U9JyMwMDAwMDAnIHN0cm9rZS13aWR0aD0nMycgc3Ryb2tlLW1pdGVybGltaXQ9JzEwJyBwb2ludGVyLWV2ZW50cz0nYWxsJy8+PC9nPjwvc3ZnPg==")';
     elt2.firstChild.style.backgroundPosition = 'center';
     elt2.firstChild.style.backgroundSize = 'contain';
     elt2.firstChild.style.backgroundRepeat = 'no-repeat';
@@ -853,28 +888,3 @@ Draw.loadPlugin(function (ui) {
         Graph.handleFactory['useedge'] = singleDxDyPoint;
     }
 });
-
-function initPluginMissingLabel(ui) {
-    if (addPluginMissingLabel) {
-        const root = ui.currentPage?.root;
-        if (root && root.children[0] && root.children[0].children && root.children[0].children) {
-            const pageElems = root.children[0].children;
-            const missingLabel = pageElems.find((child) => child?.style?.includes('tamPluginMissing'));
-            if (!missingLabel) {
-                let maxX = 250, maxY = 250
-                pageElems.forEach((child) => {
-                    if (child.geometry) {
-                        maxX = Math.max(child.geometry.x, maxX);
-                        maxY = Math.max(child.geometry.y + child.geometry.h, maxY);
-                    }
-                })
-                const newLabelMissing = new mxCell("Best viewed with the <a href=\"https://github.com/ariel-bentu/tam-drawio\">TAM plugin</a>",
-                    new mxGeometry(maxX + 30, maxY + 30, 200, 25), "text;html=1;shape=tamPluginMissing;");
-                newLabelMissing.setVertex(true);
-                newLabelMissing.setConnectable(false);
-                root.children[0].insert(newLabelMissing)
-            }
-
-        }
-    }
-}
