@@ -1,0 +1,103 @@
+<html>
+    <head>
+        <title>tam-drawio</title>
+        <style>
+            body {
+                font-family: "Poppins", Helvetica, Arial, sans-serif;
+            }
+            h1 {
+                font-weight: 500;
+            }
+            p {
+                font-size: 1rem;
+                color: #77838f;
+            }
+            pre {
+                margin: 0;
+            }
+            code, em {
+                display: inline-block;
+                background-color: #f6f8fa;
+                border-radius: 0.375rem;
+                padding: 0.25rem;
+                font-family: ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,Liberation Mono,monospace;
+            }
+            .code-block {
+                display: block;
+                margin: 1rem 0;
+                padding: 1rem;
+                font-size: 1rem;
+                color: #24292f;
+            }
+            .container {
+                width: 70rem;
+                margin: auto;
+                display: grid;
+                grid-template-columns: 1fr 2fr;
+            }
+            .container > div {
+                margin: 2rem 0;
+            }
+            .link-button {
+                display: inline-block;
+                text-decoration: none;
+                padding: 1rem;
+                border-radius: 0.3125rem;
+                color: white;
+                background-color: #377dff;
+                border: 0.0625rem solid #377dff;
+                font-family: "Poppins", Helvetica, Arial, sans-serif;
+                font-weight: 500;
+            }
+            .link-button:hover {
+                box-shadow: 0 4px 11px rgb(55 125 255 / 35%);
+            }
+            .link-button__secondary {
+                color: #377dff;
+                background-color: transparent;
+                margin-left: 0.5rem;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div>
+                <h1>Online Editor</h1>
+                <p>The "Add TAM Plugin" link below is a <abbr title="A bookmark stored in a web browser that contains JavaScript commands that add new features to the browser.">bookmarklet</abbr>. Drag and drop it to your bookmarks bar of the browser.</p>
+                <p>Once you open the online editor, click on the bookmark to add the plugin.</p>
+                <!-- bookmarklet start /--><a class="link-button" href="javascript:alert('Add TAM Plugin clicked')">Add TAM Plugin</a><!-- bookmarklet end /-->
+                <a class="link-button link-button__secondary" href="https://app.diagrams.net/">Online Editor</a>
+            </div>
+            <div>
+                <img src="browser.png" alt="Online Editor with TAM plugin activated" width="100%" />
+            </div>
+            <div>
+                <h1>Desktop App</h1>
+                <p>Download the TAM plugin using link below.</p>
+                <p>Run the Draw.io application, in the menu select <em>Extras&nbsp;&gt;&nbsp;Plugins...</em>, click <em>Add</em> then <em>Select&nbsp;File...</em>, choose downloaded file and click <em>Apply</em>.</p>
+                <p>Close all instances of the Draw.io application and open again.</p>
+                <!-- download start /--><a class="link-button" href="data:application/javascript,console.log('download')" download="tam-drawio">Download TAM Plugin</a><!-- download end /-->
+                <a class="link-button link-button__secondary" href="https://github.com/jgraph/drawio-desktop/releases/latest">Download App</a>
+            </div>
+            <div>
+                <img src="desktop.png" alt="Draw.io desktop application Editor with TAM plugin activated" width="100%" />
+            </div>
+            <div>
+                <h1>VSCode Extension</h1>
+                <p>Download the TAM plugin using link below.</p>
+                <p>Open VSCode extensions tab on the left sidebar and search for <em>Draw.io</em>. Install the <em>Draw.io&nbsp;Integration</em> extension.</p>
+                <p>Edit VSCode <em>settings.json</em> by opening command palette <kbd>F1</kbd>, selecting command <em>Preferences:&nbsp;Open&nbsp;Settings&nbsp;(JSON)</em> and adding the following entry:</p>
+<code class="code-block"><pre>"hediet.vscode-drawio.plugins": [
+    {"file":"path/to/file/tam-drawio.js"}
+]</pre></code>
+                <p>Save settings and restart VSCode.</p>
+                <!-- download start /--><a class="link-button" href="data:application/javascript,console.log('download')" download="tam-drawio">Download TAM Plugin</a><!-- download end /-->
+                <a class="link-button link-button__secondary" href="https://marketplace.visualstudio.com/items?itemName=hediet.vscode-drawio">VSCode Extension</a>
+            </div>
+            <div>
+                <img src="vscode.png" alt="VSCode Draw.io extension with TAM plugin activated" width="100%" />
+            </div>
+        </div>
+    </body>
+</html>
+    

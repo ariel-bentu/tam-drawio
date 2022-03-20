@@ -58,7 +58,7 @@ This plugin adds some components to draw.io, which cover the common components u
 - `app.diagrams.net` has restricted allow-list for the plugin source domains and script checksums, 
   which prevents plugin from being added in a standard way (via `Extras --> Plugins...`)
 - As a workaround the [bookmarklet](https://en.wikipedia.org/wiki/Bookmarklet) may be used. 
-    - Navigate to the [page with bookmarklet link](https://micellius.github.io/tam-drawio/) and
+    - Navigate to the [page with bookmarklet link](https://ariel-bentu.github.io/tam-drawio/) and
       drag the link to the bookmark bar of your  browser.
     - Every time you visit https://app.diagrams.net, click on the bookmark before you open
       or create new diagram. That will install plugin for the current editor session.
@@ -101,3 +101,17 @@ To disable this behavior, see the configuration section above
 
 ## Contribution
 Contributions are welcome. open Issues, submit pull-requests etc.
+
+## Development
+To modify cloned/downloaded version of `tam-drawio` plugin, you don't need to run any build step.
+However, if you plan to contribute your change, you need to run the script that updates links in documentation. 
+
+### Prerequisites
+- Download and install [Node.js](https://nodejs.org/en/download/) (≥16.14.0)
+- Install dependencies by running `npm install` in the root directory of this repository
+
+To update the bookmarklet and download links in documentation, please run
+```
+npm run pages
+```
+after changing `tam-drawio.js`, before pushing the code.
