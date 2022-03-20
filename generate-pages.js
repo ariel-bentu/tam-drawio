@@ -16,14 +16,14 @@ const uglify = require('uglify-js');
     console.log('Reading resources/index.template.html');
     const html = await fs.promises.readFile('resources/index.template.html', 'utf8');
 
-    console.log('Writing pages/index.html');
+    console.log('Writing docs/index.html');
     const escapedScript = result.code
         .replace(/</g, '&#60;')
         .replace(/>/g, '&#62;')
         .replace(/"/g, '&#34;')
         .replace(/\\/g, '&#92;');
     await fs.promises.writeFile(
-        'pages/index.html',
+        'docs/index.html',
         html
             .replace(/<!-- bookmarklet start \/-->.+?<!-- bookmarklet end \/-->/gim, `<a class="link-button" href="javascript:${escapedScript}">Add TAM Plugin</a>`)
             .replace(/<!-- download start \/-->.+?<!-- download end \/-->/gim, `<a class="link-button" href="data:application/javascript,${escapedScript}" download="tam-drawio">Download TAM Plugin</a>`)
