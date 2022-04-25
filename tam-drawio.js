@@ -40,17 +40,27 @@ Draw.loadPlugin(function (ui) {
 
     function drawArrow(c, x1, y1, x2, y2, isVertical, isLeftUp, startArrow, endArrow) {
         let cWidth = isLeftUp ? -10 : 10;
-        let dx = 1;
-        let dy = 1;
-        let ArrowLength = 4;
+        let rw = 4; 
+        let rh = 2;
+        let ArrowLength = 8;
+        let ArrowWidth = 4;
 
         c.begin();
         if (isVertical) {
             let h = y2 - y1;
+            if (Math.abs(h) > 80) {
+                rw = rw - 1;
+                rh = rh - 1;
+            } else {
+                if (Math.abs(h) < 41) {
+                    rw = rw + 1;
+                    rh = rh + 1;
+                } 
+            }
             if (startArrow) {
-                c.moveTo(x1 + (isLeftUp ? dx : ArrowLength), y1 + (isLeftUp ? ArrowLength : dy));
+                c.moveTo(x1 + ArrowWidth - (isLeftUp ? rw : -rw ), y1 + ArrowLength - (isLeftUp ? -rh : rh));
                 c.lineTo(x1, y1);
-                c.lineTo(x1 - (isLeftUp ? ArrowLength : dy), y1 + (isLeftUp ? dx : ArrowLength));
+                c.lineTo(x1 - ArrowWidth + (isLeftUp ? -rw : rw), y1 + ArrowLength - (isLeftUp ? rh : -rh));
             }
 
             c.moveTo(x1, y1);
@@ -58,25 +68,33 @@ Draw.loadPlugin(function (ui) {
                 x1 + cWidth, y1 + 2 * h / 3,
                 x1, y2);
             if (endArrow) {
-                c.moveTo(x1 + (isLeftUp ? dx : ArrowLength), y2 - (isLeftUp ? ArrowLength : dy));
+                c.moveTo(x1 + ArrowWidth - (isLeftUp ? rw : -rw ), y2 - ArrowLength + (isLeftUp ? -rh : rh));
                 c.lineTo(x1, y2);
-                c.lineTo(x1 - (isLeftUp ? ArrowLength : dy), y2 - (isLeftUp ? dx : ArrowLength));
+                c.lineTo(x1 - ArrowWidth + (isLeftUp ? -rw : rw), y2 - ArrowLength + (isLeftUp ? rh : -rh));
             }
         } else {
             let w = x2 - x1;
-            if (startArrow) {
-                c.moveTo(x1 + (isLeftUp ? dy : ArrowLength), y1 - (isLeftUp ? ArrowLength : dx));
+            if (Math.abs(w) > 80) {
+                rw = rw - 1;
+                rh = rh - 1;
+            } else {
+                if (Math.abs(w) < 41) {
+                    rw = rw + 1;
+                    rh = rh + 1;
+                } 
+            }if (startArrow) {
+                c.moveTo(x1 + ArrowLength - (isLeftUp ? rh : -rh ), y1 - ArrowWidth + (isLeftUp ? -rw : rw));
                 c.lineTo(x1, y1);
-                c.lineTo(x1 + (isLeftUp ? ArrowLength : dx), y1 + (isLeftUp ? dy : ArrowLength));
+                c.lineTo(x1 + ArrowLength - (isLeftUp ? -rh : rh ), y1 + ArrowWidth - (isLeftUp ? rw : -rw));
             }
             c.moveTo(x1, y1);
             c.curveTo(x1 + w / 3, y1 + cWidth,
                 x1 + 2 * w / 3, y1 + cWidth,
                 x2, y1);
             if (endArrow) {
-                c.moveTo(x2 - (isLeftUp ? dx : ArrowLength), y1 - (isLeftUp ? ArrowLength : dx));
+                c.moveTo(x2 - ArrowLength + (isLeftUp ? rh : -rh ), y1 - ArrowWidth + (isLeftUp ? -rw : rw));
                 c.lineTo(x2, y1);
-                c.lineTo(x2 - (isLeftUp ? ArrowLength : dy), y1 + (isLeftUp ? dx : ArrowLength));
+                c.lineTo(x2 - ArrowLength + (isLeftUp ? -rh : rh ), y1 + ArrowWidth - (isLeftUp ? rw : -rw));
             }
         }
         c.stroke();
@@ -255,11 +273,11 @@ Draw.loadPlugin(function (ui) {
             }
             const isVertical = mxUtils.getValue(this.style, 'vertical', false);
             if (isVertical) {
-                drawArrow(c, pts[0].x + 5, pts[0].y + 5, pts[1].x + 5, pts[1].y - 5, isVertical, false, true, false);
-                drawArrow(c, pts[0].x - 5, pts[0].y + 5, pts[1].x - 5, pts[1].y - 5, isVertical, true, false, true);
+                drawArrow(c, pts[0].x + 5, pts[0].y , pts[1].x + 5, pts[1].y , isVertical, false, true, false);
+                drawArrow(c, pts[0].x - 5, pts[0].y , pts[1].x - 5, pts[1].y , isVertical, true, false, true);
             } else {
-                drawArrow(c, pts[0].x + 5, pts[0].y - 5, pts[1].x - 5, pts[1].y - 5, isVertical, true, true, false);
-                drawArrow(c, pts[0].x + 5, pts[0].y + 5, pts[1].x - 5, pts[1].y + 5, isVertical, false, false, true);
+                drawArrow(c, pts[0].x , pts[0].y - 5, pts[1].x , pts[1].y - 5, isVertical, true, true, false);
+                drawArrow(c, pts[0].x , pts[0].y + 5, pts[1].x , pts[1].y + 5, isVertical, false, false, true);
             }
 
             (sourceMarker => typeof sourceMarker === 'function' && sourceMarker())(this.createMarker(c, pts, true));
@@ -688,8 +706,8 @@ Draw.loadPlugin(function (ui) {
         content.appendChild(ui.sidebar.createEdgeTemplate('rounded=1;shape=useedge;vertical=true;edgeStyle=elbowEdgeStyle;elbow=vertical;endArrow=none;useSignPosition=up;useSignDirection=east;', 70, 160, ''));
         content.appendChild(ui.sidebar.createEdgeTemplate('rounded=1;shape=useedge;edgeStyle=elbowEdgeStyle;elbow=horizontal;endArrow=none;useSignPosition=left;useSignDirection=south;', 160, 70, ''));
         content.appendChild(ui.sidebar.createVertexTemplate('rounded=1;whiteSpace=wrap;html=1;arcSize=60;strokeWidth=2;', 90, 40, ''));
-        content.appendChild(ui.sidebar.createEdgeTemplateFromCells([VerticalUpdateEdgeCodec.prototype.create()], 160, 0, 'Vertical Access'));
-        content.appendChild(ui.sidebar.createEdgeTemplateFromCells([HorizontalUpdateEdgeCodec.prototype.create()], 160, 0, 'Horizontal Access'));
+        content.appendChild(ui.sidebar.createEdgeTemplateFromCells([VerticalUpdateEdgeCodec.prototype.create()], 0, 80, 'Mod. Access vert.'));
+        content.appendChild(ui.sidebar.createEdgeTemplateFromCells([HorizontalUpdateEdgeCodec.prototype.create()], 80, 0, 'Mod. Access hor.'));
         content.appendChild(ui.sidebar.createVertexTemplate('shape=agent;offsetSize=8;strokeWidth=2;', 100, 60, ''));
         content.appendChild(ui.sidebar.createVertexTemplate('shape=agent;offsetSize=8;strokeWidth=2;multiple=true;', 100, 60, ''));
         content.appendChild(ui.sidebar.createVertexTemplate('shape=actor;horizontalLabelPosition=right;align=left;labelPosition=right;strokeWidth=2;', 35, 50, '', 'Human Actor'));
