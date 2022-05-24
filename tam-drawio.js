@@ -1,5 +1,7 @@
 Draw.loadPlugin(function (ui) {
-    
+
+    const isTamPluginMissingLabel = (cell) => cell?.style?.includes("tamPluginMissing");
+
     function createMissingLabel(page, x, y, width, height) {
         const newLabelMissing = new mxCell("Best viewed with the <a href=\"https://github.com/ariel-bentu/tam-drawio\">TAM plugin</a>",
             new mxGeometry(x, y, width, height), "text;html=1;shape=tamPluginMissing;");
@@ -9,30 +11,67 @@ Draw.loadPlugin(function (ui) {
     }
 
     function updateMissingLabel(label, x, y, width, height) {
-        label.setGeometry(new mxGeometry(x, y, width, height));
+        ui.editor.graph.model.setGeometry(label, new mxGeometry(x, y, width, height));
     }
 
-    function initPluginMissingLabel(ui) {
+    ui.editor.graph.getSelectionModel().addListener(mxEvent.UNDO, (evt, sender) => {
+        if (config.addPluginMissingLabel) {
+            const selectedCells = ui.editor.graph.getSelectionCells();
+            if (selectedCells?.length > 0) {
+                // remove the label from selection list
+                const filteredSelectedCells = selectedCells.filter(sc => !isTamPluginMissingLabel(sc));
+                if (filteredSelectedCells.length < selectedCells.length) {
+                    ui.editor.graph.setSelectionCells(filteredSelectedCells);
+                }
+            }
+        }
+    });
+
+    let timer = undefined;
+    ui.editor.graph.model.addListener(mxEvent.END_UPDATE, (evt, sender) => {
+        if (config.addPluginMissingLabel) {
+            if (evt?.currentEdit?.changes?.some(change => !isTamPluginMissingLabel(change?.cell))) {
+                if (timer) {
+                    clearTimeout(timer)
+                }
+                timer = setTimeout(() => initPluginMissingLabel(ui, true), 1000);
+            }
+        }
+    });
+
+    function initPluginMissingLabel(ui, onlyIfExists) {
         if (config.addPluginMissingLabel) {
             const page = ui.currentPage?.root?.children?.[0];
             const pageElems = page?.children;
             if (pageElems) {
+                const missingLabel = pageElems.find((child) => isTamPluginMissingLabel(child));
+                if (onlyIfExists && !missingLabel)
+                    return;
+
                 let maxX = 0, maxY = 0;
+                let minX = 0, minY = 0;
                 pageElems.forEach((child) => {
-                    if (child.geometry && !child?.style?.includes('tamPluginMissing')) {
-                        maxX = Math.max(child.geometry.x + child.geometry.width, maxX);
-                        maxY = Math.max(child.geometry.y + child.geometry.height, maxY);
+                    if (child.geometry && !isTamPluginMissingLabel(child)) {
+                        minX = minX === 0 ? child.geometry.x : Math.min(child.geometry.x, minX);
+                        minY = minY === 0 ? child.geometry.y : Math.min(child.geometry.y, minY);
+
+                        maxX = maxX === 0 ? child.geometry.x + child.geometry.width : Math.max(child.geometry.x + child.geometry.width, maxX);
+                        maxY = maxY === 0 ? child.geometry.y + child.geometry.height : Math.max(child.geometry.y + child.geometry.height, maxY);
                     }
                 })
-                const missingLabel = pageElems.find((child) => child?.style?.includes('tamPluginMissing'));
                 const missingLabelWidth = 200;
                 const missingLabelHeight = 25;
-                const missingLabelX = Math.max(0, (maxX - missingLabelWidth) / 2);
+                const missingLabelX = minX + (maxX - minX - missingLabelWidth) / 2;
                 const missingLabelY = maxY + missingLabelHeight + 5;
-                if (missingLabel) {
-                    updateMissingLabel(missingLabel, missingLabelX, missingLabelY, missingLabelWidth, missingLabelHeight);
-                } else {
-                    createMissingLabel(page, missingLabelX, missingLabelY, missingLabelWidth, missingLabelHeight);
+                ui.editor.graph.model.beginUpdate();
+                try {
+                    if (missingLabel) {
+                        updateMissingLabel(missingLabel, missingLabelX, missingLabelY, missingLabelWidth, missingLabelHeight);
+                    } else {
+                        createMissingLabel(page, missingLabelX, missingLabelY, missingLabelWidth, missingLabelHeight);
+                    }
+                } finally {
+                    ui.editor.graph.model.endUpdate();
                 }
             }
         }
@@ -246,6 +285,7 @@ Draw.loadPlugin(function (ui) {
             initPluginMissingLabel(ui);
         }
         paintEdgeShape(c, pts, rounded) {
+
             c.setFillColor(this.stroke);
             c.setDashed(c.state.dashed, c.state.fixDash);
             c.setShadow(false);
@@ -275,6 +315,7 @@ Draw.loadPlugin(function (ui) {
         constructor() {
             super();
             initPluginMissingLabel(ui);
+
         }
         paintEdgeShape(c, pts, rounded) {
             c.setDashed(c.state.dashed, c.state.fixDash);
@@ -484,6 +525,7 @@ Draw.loadPlugin(function (ui) {
         constructor() {
             super();
             initPluginMissingLabel(ui);
+
         }
         paintVertexShape(c, x, y, w, h) {
             const isVertical = mxUtils.getValue(this.style, 'vertical', false);
@@ -537,6 +579,7 @@ Draw.loadPlugin(function (ui) {
         constructor() {
             super();
             initPluginMissingLabel(ui);
+
         }
         paintVertexShape(c, x, y, w, h) {
             //we maintain aspect ratio
@@ -647,11 +690,9 @@ Draw.loadPlugin(function (ui) {
         }
     }
 
-
-
     class HideTamComment extends mxText {
         paint(c, update) {
-            if (this?.style?.shape !== 'tamPluginMissing') {
+            if (this?.style?.shape !== "tamPluginMissing") {
                 mxText.prototype.paint.call(this, c, update);
             }
         }
