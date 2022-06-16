@@ -1,5 +1,5 @@
 Draw.loadPlugin(function (ui) {
-
+    const tamShapes = [];
     const isTamPluginMissingLabel = (cell) => cell?.style?.includes("tamPluginMissing");
 
     function createMissingLabel(page, x, y, width, height) {
@@ -8,10 +8,6 @@ Draw.loadPlugin(function (ui) {
         newLabelMissing.setVertex(true);
         newLabelMissing.setConnectable(false);
         page.insert(newLabelMissing);
-    }
-
-    function updateMissingLabel(label, x, y, width, height) {
-        ui.editor.graph.model.setGeometry(label, new mxGeometry(x, y, width, height));
     }
 
     ui.editor.graph.getSelectionModel().addListener(mxEvent.UNDO, (evt, sender) => {
@@ -34,44 +30,82 @@ Draw.loadPlugin(function (ui) {
                 if (timer) {
                     clearTimeout(timer)
                 }
-                timer = setTimeout(() => initPluginMissingLabel(ui, true), 1000);
+                timer = setTimeout(() => initPluginMissingLabel(ui), 100);
             }
         }
     });
 
-    function initPluginMissingLabel(ui, onlyIfExists) {
+    function parseShape(elem) {
+        let shapePos = elem.style?.indexOf("shape=");
+        if (shapePos >= 0) {
+            shapePos += 6;
+            const semiColonPos = elem.style?.indexOf(";", shapePos);
+            if (semiColonPos >= 0) {
+                return elem.style.substring(shapePos, semiColonPos).trim();
+            }
+            return elem.style.substr(shapePos).trim();
+        }
+    }
+
+    function initPluginMissingLabel(ui) {
+
         if (config.addPluginMissingLabel) {
             const page = ui.currentPage?.root?.children?.[0];
             const pageElems = page?.children;
             if (pageElems) {
-                const missingLabel = pageElems.find((child) => isTamPluginMissingLabel(child));
-                if (onlyIfExists && !missingLabel)
+                let missingLabel = undefined;
+                let isTAMPluginNeeded = false;
+                for (let i=0;i<pageElems.length;i++) {
+                    const shape = parseShape(pageElems[i]);
+                    if (shape) {
+                        if (!missingLabel && shape === "tamPluginMissing") {
+                            missingLabel = pageElems[i];
+                            isTAMPluginNeeded = true;
+                            // no need to search any more - we know it needs the plugin
+                            break;
+                        }
+                        if (tamShapes.find(ts=>ts === shape)) {
+                            isTAMPluginNeeded = true;
+                        }
+                    }
+                }
+
+                if (!isTAMPluginNeeded) {
                     return;
+                }
 
                 let maxX = 0, maxY = 0;
                 let minX = 0, minY = 0;
-                pageElems.forEach((child) => {
-                    if (child.geometry && !isTamPluginMissingLabel(child)) {
-                        minX = minX === 0 ? child.geometry.x : Math.min(child.geometry.x, minX);
-                        minY = minY === 0 ? child.geometry.y : Math.min(child.geometry.y, minY);
+                pageElems.forEach((child, i) => {
+                    if (child.geometry && child !== missingLabel) {
+                        const x = child.edge ? Math.min(child.geometry.sourcePoint.x, child.geometry.targetPoint.x) : child.geometry.x;
+                        const y = child.edge ? Math.min(child.geometry.sourcePoint.y, child.geometry.targetPoint.y) : child.geometry.y;
+                        const endX = child.edge ? Math.max(child.geometry.sourcePoint.x, child.geometry.targetPoint.x) : x + child.geometry.width;
+                        const endY = child.edge ? Math.max(child.geometry.sourcePoint.y, child.geometry.targetPoint.y) : y + child.geometry.height;
 
-                        maxX = maxX === 0 ? child.geometry.x + child.geometry.width : Math.max(child.geometry.x + child.geometry.width, maxX);
-                        maxY = maxY === 0 ? child.geometry.y + child.geometry.height : Math.max(child.geometry.y + child.geometry.height, maxY);
+                        console.log(i, child.style.substr(0, 20), x, y, endX, endY);
+
+                        minX = minX === 0 ? x : Math.min(x, minX);
+                        minY = minY === 0 ? y : Math.min(y, minY);
+
+                        maxX = maxX === 0 ? endX : Math.max(endX, maxX);
+                        maxY = maxY === 0 ? endY : Math.max(endY, maxY);
                     }
                 })
                 const missingLabelWidth = 200;
                 const missingLabelHeight = 25;
                 const missingLabelX = minX + (maxX - minX - missingLabelWidth) / 2;
                 const missingLabelY = maxY + missingLabelHeight + 5;
-                ui.editor.graph.model.beginUpdate();
-                try {
-                    if (missingLabel) {
-                        updateMissingLabel(missingLabel, missingLabelX, missingLabelY, missingLabelWidth, missingLabelHeight);
-                    } else {
+                if (missingLabel) {
+                    ui.editor.graph.model.setGeometry(missingLabel, new mxGeometry(missingLabelX, missingLabelY, missingLabelWidth, missingLabelHeight));
+                    ui.editor.graph.refresh();
+                } else {
+                    ui.editor.graph.model.beginUpdate();
+                    try {
                         createMissingLabel(page, missingLabelX, missingLabelY, missingLabelWidth, missingLabelHeight);
+                    } finally {
+                        ui.editor.graph.model.endUpdate();
                     }
-                } finally {
-                    ui.editor.graph.model.endUpdate();
                 }
             }
         }
@@ -79,27 +113,17 @@ Draw.loadPlugin(function (ui) {
 
     function drawArrow(c, x1, y1, x2, y2, isVertical, isLeftUp, startArrow, endArrow) {
         let cWidth = isLeftUp ? -10 : 10;
-        let rw = 4; 
-        let rh = 2;
-        let ArrowLength = 8;
-        let ArrowWidth = 4;
+        let dx = 1;
+        let dy = 1;
+        let ArrowLength = 4;
 
         c.begin();
         if (isVertical) {
             let h = y2 - y1;
-            if (Math.abs(h) > 80) {
-                rw = rw - 1;
-                rh = rh - 1;
-            } else {
-                if (Math.abs(h) < 41) {
-                    rw = rw + 1;
-                    rh = rh + 1;
-                } 
-            }
             if (startArrow) {
-                c.moveTo(x1 + ArrowWidth - (isLeftUp ? rw : -rw ), y1 + ArrowLength - (isLeftUp ? -rh : rh));
+                c.moveTo(x1 + (isLeftUp ? dx : ArrowLength), y1 + (isLeftUp ? ArrowLength : dy));
                 c.lineTo(x1, y1);
-                c.lineTo(x1 - ArrowWidth + (isLeftUp ? -rw : rw), y1 + ArrowLength - (isLeftUp ? rh : -rh));
+                c.lineTo(x1 - (isLeftUp ? ArrowLength : dy), y1 + (isLeftUp ? dx : ArrowLength));
             }
 
             c.moveTo(x1, y1);
@@ -107,33 +131,25 @@ Draw.loadPlugin(function (ui) {
                 x1 + cWidth, y1 + 2 * h / 3,
                 x1, y2);
             if (endArrow) {
-                c.moveTo(x1 + ArrowWidth - (isLeftUp ? rw : -rw ), y2 - ArrowLength + (isLeftUp ? -rh : rh));
+                c.moveTo(x1 + (isLeftUp ? dx : ArrowLength), y2 - (isLeftUp ? ArrowLength : dy));
                 c.lineTo(x1, y2);
-                c.lineTo(x1 - ArrowWidth + (isLeftUp ? -rw : rw), y2 - ArrowLength + (isLeftUp ? rh : -rh));
+                c.lineTo(x1 - (isLeftUp ? ArrowLength : dy), y2 - (isLeftUp ? dx : ArrowLength));
             }
         } else {
             let w = x2 - x1;
-            if (Math.abs(w) > 80) {
-                rw = rw - 1;
-                rh = rh - 1;
-            } else {
-                if (Math.abs(w) < 41) {
-                    rw = rw + 1;
-                    rh = rh + 1;
-                } 
-            }if (startArrow) {
-                c.moveTo(x1 + ArrowLength - (isLeftUp ? rh : -rh ), y1 - ArrowWidth + (isLeftUp ? -rw : rw));
+            if (startArrow) {
+                c.moveTo(x1 + (isLeftUp ? dy : ArrowLength), y1 - (isLeftUp ? ArrowLength : dx));
                 c.lineTo(x1, y1);
-                c.lineTo(x1 + ArrowLength - (isLeftUp ? -rh : rh ), y1 + ArrowWidth - (isLeftUp ? rw : -rw));
+                c.lineTo(x1 + (isLeftUp ? ArrowLength : dx), y1 + (isLeftUp ? dy : ArrowLength));
             }
             c.moveTo(x1, y1);
             c.curveTo(x1 + w / 3, y1 + cWidth,
                 x1 + 2 * w / 3, y1 + cWidth,
                 x2, y1);
             if (endArrow) {
-                c.moveTo(x2 - ArrowLength + (isLeftUp ? rh : -rh ), y1 - ArrowWidth + (isLeftUp ? -rw : rw));
+                c.moveTo(x2 - (isLeftUp ? dx : ArrowLength), y1 - (isLeftUp ? ArrowLength : dx));
                 c.lineTo(x2, y1);
-                c.lineTo(x2 - ArrowLength + (isLeftUp ? -rh : rh ), y1 + ArrowWidth - (isLeftUp ? rw : -rw));
+                c.lineTo(x2 - (isLeftUp ? ArrowLength : dy), y1 + (isLeftUp ? dx : ArrowLength));
             }
         }
         c.stroke();
@@ -298,10 +314,7 @@ Draw.loadPlugin(function (ui) {
     }
 
     class UpdateEdgeShape extends mxConnector {
-        constructor() {
-            super();
-            initPluginMissingLabel(ui);
-        }
+
         paintEdgeShape(c, pts, rounded) {
 
             c.setFillColor(this.stroke);
@@ -313,11 +326,11 @@ Draw.loadPlugin(function (ui) {
             }
             const isVertical = mxUtils.getValue(this.style, 'vertical', false);
             if (isVertical) {
-                drawArrow(c, pts[0].x + 5, pts[0].y , pts[1].x + 5, pts[1].y , isVertical, false, true, false);
-                drawArrow(c, pts[0].x - 5, pts[0].y , pts[1].x - 5, pts[1].y , isVertical, true, false, true);
+                drawArrow(c, pts[0].x + 5, pts[0].y + 5, pts[1].x + 5, pts[1].y - 5, isVertical, false, true, false);
+                drawArrow(c, pts[0].x - 5, pts[0].y + 5, pts[1].x - 5, pts[1].y - 5, isVertical, true, false, true);
             } else {
-                drawArrow(c, pts[0].x , pts[0].y - 5, pts[1].x , pts[1].y - 5, isVertical, true, true, false);
-                drawArrow(c, pts[0].x , pts[0].y + 5, pts[1].x , pts[1].y + 5, isVertical, false, false, true);
+                drawArrow(c, pts[0].x + 5, pts[0].y - 5, pts[1].x - 5, pts[1].y - 5, isVertical, true, true, false);
+                drawArrow(c, pts[0].x + 5, pts[0].y + 5, pts[1].x - 5, pts[1].y + 5, isVertical, false, false, true);
             }
 
             (sourceMarker => typeof sourceMarker === 'function' && sourceMarker())(this.createMarker(c, pts, true));
@@ -330,11 +343,7 @@ Draw.loadPlugin(function (ui) {
     }
 
     class UseEdgeShape extends mxConnector {
-        constructor() {
-            super();
-            initPluginMissingLabel(ui);
 
-        }
         paintEdgeShape(c, pts, rounded) {
             c.setDashed(c.state.dashed, c.state.fixDash);
             c.setShadow(false);
@@ -540,11 +549,7 @@ Draw.loadPlugin(function (ui) {
     }
 
     class Dot3Shape extends mxCylinder {
-        constructor() {
-            super();
-            initPluginMissingLabel(ui);
 
-        }
         paintVertexShape(c, x, y, w, h) {
             const isVertical = mxUtils.getValue(this.style, 'vertical', false);
             const radius = isVertical ? 2 * w / 3 : 2 * h / 3;
@@ -562,10 +567,6 @@ Draw.loadPlugin(function (ui) {
     }
 
     class AgentShape extends mxRectangleShape {
-        constructor() {
-            super();
-            initPluginMissingLabel(ui);
-        }
         paintVertexShape(c, x, y, w, h) {
             const multiple = mxUtils.getValue(this.style, 'multiple', false);
             const offsetSize = mxUtils.getValue(this.style, 'offsetSize', 8);
@@ -594,11 +595,6 @@ Draw.loadPlugin(function (ui) {
     }
 
     class ActorShape extends mxRectangleShape {
-        constructor() {
-            super();
-            initPluginMissingLabel(ui);
-
-        }
         paintVertexShape(c, x, y, w, h) {
             //we maintain aspect ratio
             w = 2 * h / 3
@@ -639,10 +635,6 @@ Draw.loadPlugin(function (ui) {
     }
 
     class LShape extends mxRectangleShape {
-        constructor() {
-            super();
-            initPluginMissingLabel(ui);
-        }
         paintVertexShape(c, x, y, w, h) {
             const margin = mxUtils.getValue(this.style, 'margin', h / 10);
             const dx = mxUtils.getValue(this.style, 'dx', 80);
@@ -663,10 +655,6 @@ Draw.loadPlugin(function (ui) {
     }
 
     class UShape extends mxRectangleShape {
-        constructor() {
-            super();
-            initPluginMissingLabel(ui);
-        }
         paintVertexShape(c, x, y, w, h) {
             const margin = mxUtils.getValue(this.style, 'margin', h / 10);
             const dx = mxUtils.getValue(this.style, 'dx', 20);
@@ -689,10 +677,6 @@ Draw.loadPlugin(function (ui) {
     }
 
     class EndActivity extends mxDoubleEllipse {
-        constructor() {
-            super();
-            initPluginMissingLabel(ui);
-        }
         paintVertexShape(c, x, y, w, h) {
             c.ellipse(x, y, w, h);
             c.stroke();
@@ -715,7 +699,7 @@ Draw.loadPlugin(function (ui) {
             }
         }
     }
-    mxCellRenderer.prototype.defaultTextShape = HideTamComment
+    //mxCellRenderer.prototype.defaultTextShape = HideTamComment
 
     // Register codecs
     tamUtils.registerCodec(StorageCodec);
@@ -732,6 +716,19 @@ Draw.loadPlugin(function (ui) {
     mxCellRenderer.registerShape('ushape', UShape);
     mxCellRenderer.registerShape('endactivity', EndActivity);
 
+    tamShapes.push('updateedge');
+    tamShapes.push('useedge');
+    tamShapes.push('dot3');
+    tamShapes.push('agent');
+    tamShapes.push('actor');
+    tamShapes.push('lshape');
+    tamShapes.push('ushape');
+    tamShapes.push('endactivity');
+
+
+
+
+
     // Adds custom sidebar entry
     const arrowPrefix = "edgeStyle=elbowEdgeStyle;html=1;labelBackgroundColor=none;rounded=0;";
 
@@ -747,8 +744,8 @@ Draw.loadPlugin(function (ui) {
         content.appendChild(ui.sidebar.createEdgeTemplate('rounded=1;shape=useedge;vertical=true;edgeStyle=elbowEdgeStyle;elbow=vertical;endArrow=none;useSignPosition=up;useSignDirection=east;', 70, 160, ''));
         content.appendChild(ui.sidebar.createEdgeTemplate('rounded=1;shape=useedge;edgeStyle=elbowEdgeStyle;elbow=horizontal;endArrow=none;useSignPosition=left;useSignDirection=south;', 160, 70, ''));
         content.appendChild(ui.sidebar.createVertexTemplate('rounded=1;whiteSpace=wrap;html=1;arcSize=60;strokeWidth=2;', 90, 40, ''));
-        content.appendChild(ui.sidebar.createEdgeTemplateFromCells([VerticalUpdateEdgeCodec.prototype.create()], 0, 80, 'Mod. Access vert.'));
-        content.appendChild(ui.sidebar.createEdgeTemplateFromCells([HorizontalUpdateEdgeCodec.prototype.create()], 80, 0, 'Mod. Access hor.'));
+        content.appendChild(ui.sidebar.createEdgeTemplateFromCells([VerticalUpdateEdgeCodec.prototype.create()], 160, 0, 'Vertical Access'));
+        content.appendChild(ui.sidebar.createEdgeTemplateFromCells([HorizontalUpdateEdgeCodec.prototype.create()], 160, 0, 'Horizontal Access'));
         content.appendChild(ui.sidebar.createVertexTemplate('shape=agent;offsetSize=8;strokeWidth=2;', 100, 60, ''));
         content.appendChild(ui.sidebar.createVertexTemplate('shape=agent;offsetSize=8;strokeWidth=2;multiple=true;', 100, 60, ''));
         content.appendChild(ui.sidebar.createVertexTemplate('shape=actor;horizontalLabelPosition=right;align=left;labelPosition=right;strokeWidth=2;', 35, 50, '', 'Human Actor'));
