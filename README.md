@@ -102,6 +102,9 @@ To disable this behavior, see the configuration section above
 ## Contribution
 Contributions are welcome. open Issues, submit pull-requests etc.
 
+## Credits
+- Special thanks to [micellius](https://github.com/micellius) for improving the code, contributing the bookmarklet concept for the online option, improving the settings and more. 
+
 ## Development
 To modify cloned/downloaded version of `tam-drawio` plugin, you don't need to run any build step.
 However, if you plan to contribute your change, you need to run the script that updates links in documentation. 
