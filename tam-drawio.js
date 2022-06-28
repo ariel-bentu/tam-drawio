@@ -699,7 +699,7 @@ Draw.loadPlugin(function (ui) {
             }
         }
     }
-    //mxCellRenderer.prototype.defaultTextShape = HideTamComment
+    mxCellRenderer.prototype.defaultTextShape = HideTamComment
 
     // Register codecs
     tamUtils.registerCodec(StorageCodec);
