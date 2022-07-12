@@ -132,6 +132,26 @@ Contributions are welcome. open Issues, submit pull-requests etc.
 To modify cloned/downloaded version of `tam-drawio` plugin, you don't need to run any build step.
 However, if you plan to contribute your change, you need to run the script that updates links in documentation. 
 
+### Debug
+The best way to debug the code is to load the plugin on an html version of draw.io. here are the steps:
+- clone draw.io (`https://github.com/jgraph/drawio`) into a sibling folder to this project. (so `../drawio` would find it)
+- Copy the tam-drawio.js into `../drawio/src/main/webapp/plugins`
+- Modify `../drawio/src/main/webapp/index.html` this file by changing these two variables:
+```
+      ...
+    if (urlParams['dev'] == '1')
+		{
+	    // Used to request grapheditor/mxgraph sources in dev mode
+			var mxDevUrl = document.location.protocol + '//devhost.jgraph.com/drawio/src/main';
+			
+			// Used to request draw.io sources in dev mode
+			var drawDevUrl = document.location.protocol + '//devhost.jgraph.com/drawio/src/main/webapp/';
+		
+```
+- Run: `node drawio.js` and access the server `http://localhost:8080?dev=1`
+- Now use the browser debugger to debug the plugin.
+
+
 ### Prerequisites
 - Download and install [Node.js](https://nodejs.org/en/download/) (≥16.14.0)
 - Install dependencies by running `npm install` in the root directory of this repository
