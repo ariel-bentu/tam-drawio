@@ -78,10 +78,11 @@ Draw.loadPlugin(function (ui) {
                 let minX = 0, minY = 0;
                 pageElems.forEach((child, i) => {
                     if (child.geometry && child !== missingLabel) {
-                        const x = child.edge ? Math.min(child.geometry.sourcePoint.x, child.geometry.targetPoint.x) : child.geometry.x;
-                        const y = child.edge ? Math.min(child.geometry.sourcePoint.y, child.geometry.targetPoint.y) : child.geometry.y;
-                        const endX = child.edge ? Math.max(child.geometry.sourcePoint.x, child.geometry.targetPoint.x) : x + child.geometry.width;
-                        const endY = child.edge ? Math.max(child.geometry.sourcePoint.y, child.geometry.targetPoint.y) : y + child.geometry.height;
+                        const isEdge =  child.edge && child.geometry.sourcePoint && child.geometry.targetPoint
+                        const x = isEdge ? Math.min(child.geometry.sourcePoint.x, child.geometry.targetPoint.x) : child.geometry.x;
+                        const y = isEdge ? Math.min(child.geometry.sourcePoint.y, child.geometry.targetPoint.y) : child.geometry.y;
+                        const endX = isEdge ? Math.max(child.geometry.sourcePoint.x, child.geometry.targetPoint.x) : x + child.geometry.width;
+                        const endY = isEdge ? Math.max(child.geometry.sourcePoint.y, child.geometry.targetPoint.y) : y + child.geometry.height;
 
                         console.log(i, child.style.substr(0, 20), x, y, endX, endY);
 
