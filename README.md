@@ -19,13 +19,20 @@ This plugin adds some components to draw.io, which cover the common components u
 
 ### Install in draw.io desktop
 
-- Goto Menu `Extras->Plugins...`
-- Press `Add`
-- browse and select `tam-drawio.js`
-- Press `Apply`
-- Restart Drawio
+- open menu `Extras->Configurations...`
+- add a `plugins` entry - as array of paths to plugins (adjust the path to match yours):
+```
+{
+  "plugins": [
+    "/path/to/tam-drawio.js"
+  ]
+}
+```
+- restart draw.io
 
+**Note:** Since draw.io v19.0.3, in the desktop (Electron) version of draw.io, plugins are disabled by default. So `Extras->Plugins...` is blocked, but setting it via the Configurations **works**.
 
+- Credits to [denisMihaylov](https://github.com/denisMihaylov) for this elegant workaround of the external plugins disablement.
 
 
 > in some cases if you re-install the plugin, you get the error "File Already Exists". then go to the `<appData>/draw.io/plugins` and remove the file manually before re-installing.
@@ -108,6 +115,26 @@ Contributions are welcome. open Issues, submit pull-requests etc.
 ## Development
 To modify cloned/downloaded version of `tam-drawio` plugin, you don't need to run any build step.
 However, if you plan to contribute your change, you need to run the script that updates links in documentation. 
+
+### Debug
+The best way to debug the code is to load the plugin on an html version of draw.io. here are the steps:
+- clone draw.io (`https://github.com/jgraph/drawio`) into a sibling folder to this project. (so `../drawio` would find it)
+- Copy the tam-drawio.js into `../drawio/src/main/webapp/plugins`
+- Modify `../drawio/src/main/webapp/index.html` this file by changing these two variables:
+```
+      ...
+    if (urlParams['dev'] == '1')
+		{
+	    // Used to request grapheditor/mxgraph sources in dev mode
+			var mxDevUrl = document.location.protocol + '//devhost.jgraph.com/drawio/src/main';
+			
+			// Used to request draw.io sources in dev mode
+			var drawDevUrl = document.location.protocol + '//devhost.jgraph.com/drawio/src/main/webapp/';
+		
+```
+- Run: `node drawio.js` and access the server `http://localhost:8080?dev=1`
+- Now use the browser debugger to debug the plugin.
+
 
 ### Prerequisites
 - Download and install [Node.js](https://nodejs.org/en/download/) (≥16.14.0)
