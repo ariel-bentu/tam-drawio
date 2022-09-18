@@ -571,18 +571,30 @@ Draw.loadPlugin(function (ui) {
         paintVertexShape(c, x, y, w, h) {
             const multiple = mxUtils.getValue(this.style, 'multiple', false);
             const offsetSize = mxUtils.getValue(this.style, 'offsetSize', 8);
+            const halfStrokeWidth = mxUtils.getValue(this.style, 'strokeWidth', 2) / 2;
 
             if (multiple) {
+                // Fill ╗
                 c.begin();
-                c.moveTo(x + offsetSize, y);
-                c.lineTo(x + offsetSize, y + offsetSize);
-                c.moveTo(x + w - offsetSize, y + h - offsetSize);
-                c.lineTo(x + w, y + h - offsetSize);
-                c.lineTo(x + w, y);
-                c.lineTo(x + w, y);
+                c.moveTo(x + offsetSize, y + offsetSize);
                 c.lineTo(x + offsetSize, y);
+                c.lineTo(x + w, y);
+                c.lineTo(x + w, y + h - offsetSize);
+                c.lineTo(x + w - offsetSize, y + h - offsetSize);
+                c.lineTo(x + w - offsetSize, y + offsetSize);
+                c.close();
+                c.fill();
                 c.end();
-                c.fillAndStroke();
+                // Stroke ╗
+                c.begin();
+                c.moveTo(x + offsetSize, y + offsetSize - halfStrokeWidth);
+                c.lineTo(x + offsetSize, y);
+                c.lineTo(x + w, y);
+                c.lineTo(x + w, y + h - offsetSize);
+                c.lineTo(x + w - offsetSize + halfStrokeWidth, y + h - offsetSize);
+                c.stroke();
+                c.end();
+                // Fill and stroke front rectangle
                 drawRect(c, x, y + offsetSize, w - offsetSize, h - offsetSize);
             } else {
                 drawRect(c, x, y, w, h);
