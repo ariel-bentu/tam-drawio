@@ -19,20 +19,33 @@ This plugin adds some components to draw.io, which cover the common components u
 
 ### Install in draw.io desktop
 
-- open menu `Extras->Configurations...`
-- add a `plugins` entry - as array of paths to plugins (adjust the path to match yours):
-```
-{
-  "plugins": [
-    "/path/to/tam-drawio.js"
-  ]
-}
-```
-- restart draw.io
+**Note:** Since draw.io v19.0.3, in the desktop (Electron) version of draw.io, plugins are disabled by default, and since v20,  also are blocked from `extra->configurations` menu. To allow plugins, one needs to pass a command-line argument to draw.io `--enable-plugins=true`.
 
-**Note:** Since draw.io v19.0.3, in the desktop (Electron) version of draw.io, plugins are disabled by default. So `Extras->Plugins...` is blocked, but setting it via the Configurations **works**.
+ For Mac users, there are three possible methods:
+ 1. Easiest, but requires downloading an unsigned app
+    - download [this tar](./launchDrawioWithPlugins.tar)
+    - extract it locally -> you will now see a macOS `app`
+    - drag and drop it onto your 'Applications' folder
+    - first time, right-click on it and select `Open` - you'll be prompted to Open an app with unverified developer. Choose `Open` - That's it.
+    - Next time, you can simple double click normally to open the app.
+    - Note: The tar file contains 3 files: icon, plist.info, script to run the original draw.io
+ 2. Easy, but not perfect:
+    - Open “Script Editor”
+    - Paste this code: 
+    ```
+       do shell script "\"/Applications/draw.io.app/Contents/MacOS/draw.io\" --enable-plugins"
+       quit
+    ```
+    - Save… -> choose “file format” to be “application”, give it a name: e.g. `tamDrawIO`
+    - Now you have an application with your chosen name.
+ 3. Harder, but then seemless experience: [see here](./mac-pass-arg.md)
 
-- Credits to [denisMihaylov](https://github.com/denisMihaylov) for this elegant workaround of the external plugins disablement.
+ After you enabled plugins, follow these steps:
+ - Goto Menu `Extras->Plugins...`
+ - Press `Add`
+ - browse and select `tam-drawio.js`
+ - Press `Apply`
+ - Restart Drawio
 
 
 > in some cases if you re-install the plugin, you get the error "File Already Exists". then go to the `<appData>/draw.io/plugins` and remove the file manually before re-installing.
