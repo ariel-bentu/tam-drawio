@@ -19,7 +19,7 @@ This plugin adds some components to draw.io, which cover the common components u
 
 ### Install in draw.io desktop
 
-**Note:** Since draw.io v19.0.3, in the desktop (Electron) version of draw.io, plugins are disabled by default, and since v20,  also are blocked from `extra->configurations` menu. To allow plugins, one needs to pass a command-line argument to draw.io `--enable-plugins=true`.
+**Note:** Since draw.io v19.0.3, in the desktop (Electron) version of draw.io, plugins are disabled by default, and since v20,  also are blocked from `extra->configurations` menu. To allow plugins, one needs to pass a command-line argument to draw.io `--enable-plugins`.
 
  For Mac users, there are three possible methods:
  1. Easiest, but requires downloading an unsigned app
