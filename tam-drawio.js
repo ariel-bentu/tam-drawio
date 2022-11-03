@@ -743,7 +743,7 @@ Draw.loadPlugin(function (ui) {
 
 
     // Adds custom sidebar entry
-    const arrowPrefix = "edgeStyle=elbowEdgeStyle;html=1;labelBackgroundColor=none;rounded=0;";
+    const arrowPrefix = "edgeStyle=elbowEdgeStyle;html=1;labelBackgroundColor=none;rounded=1;";
 
     Sidebar.prototype.tam = ['Block', 'Class', 'Activity', 'Annotate'];
 
@@ -845,7 +845,7 @@ Draw.loadPlugin(function (ui) {
         e1.style = origStyle + ';startArrow=diamondThin;startFill=1;'
         content.appendChild(ui.sidebar.createEdgeTemplateFromCells([e1], e1.geometry.width, e1.geometry.height, 'Composition'));
 
-        content.appendChild(ui.sidebar.createEdgeTemplate('endArrow=block;html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;endFill=0;strokeWidth=1;endSize=14', 80, 80, '', 'Specialization'));
+        content.appendChild(ui.sidebar.createEdgeTemplate('endArrow=block;html=1;rounded=1;edgeStyle=orthogonalEdgeStyle;endFill=0;strokeWidth=1;endSize=14', 80, 80, '', 'Specialization'));
     });
 
     ui.sidebar.setCurrentSearchEntryLibrary();
