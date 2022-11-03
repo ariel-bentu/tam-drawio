@@ -553,11 +553,11 @@ Draw.loadPlugin(function (ui) {
 
         paintVertexShape(c, x, y, w, h) {
             const isVertical = mxUtils.getValue(this.style, 'vertical', false);
-            const radius = isVertical ? 2 * w / 3 : 2 * h / 3;
-            const x1 = x + radius * .25;
-            const y1 = y + radius * .25;
-            const dx = isVertical ? 0 : radius * 1.8;
-            const dy = isVertical ? radius * 1.8 : 0;
+            const radius = isVertical ? 1/3 * w : 1/3 * h;
+            const x1 = x + radius;
+            const y1 = y + radius;
+            const dx = isVertical ? 0 : radius * 3.6;
+            const dy = isVertical ? radius * 3.6 : 0;
 
             c.setFillColor(this.stroke);
             for (let i = 0; i < 3; i++) {
