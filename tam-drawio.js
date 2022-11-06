@@ -553,11 +553,11 @@ Draw.loadPlugin(function (ui) {
 
         paintVertexShape(c, x, y, w, h) {
             const isVertical = mxUtils.getValue(this.style, 'vertical', false);
-            const radius = isVertical ? 2 * w / 3 : 2 * h / 3;
-            const x1 = x + radius * .25;
-            const y1 = y + radius * .25;
-            const dx = isVertical ? 0 : radius * 1.8;
-            const dy = isVertical ? radius * 1.8 : 0;
+            const radius = isVertical ? 1/3 * w : 1/3 * h;
+            const x1 = x + radius;
+            const y1 = y + radius;
+            const dx = isVertical ? 0 : radius * 3.6;
+            const dy = isVertical ? radius * 3.6 : 0;
 
             c.setFillColor(this.stroke);
             for (let i = 0; i < 3; i++) {
@@ -743,7 +743,7 @@ Draw.loadPlugin(function (ui) {
 
 
     // Adds custom sidebar entry
-    const arrowPrefix = "edgeStyle=elbowEdgeStyle;html=1;labelBackgroundColor=none;rounded=0;";
+    const arrowPrefix = "edgeStyle=elbowEdgeStyle;html=1;labelBackgroundColor=none;rounded=1;";
 
     Sidebar.prototype.tam = ['Block', 'Class', 'Activity', 'Annotate'];
 
@@ -752,29 +752,29 @@ Draw.loadPlugin(function (ui) {
 
     ui.sidebar.setCurrentSearchEntryLibrary('tam', 'tamBlock');
     ui.sidebar.addPalette('tamBlock', 'TAM / Block', true, function (content) {
-        content.appendChild(ui.sidebar.createEdgeTemplate('shape=useedge;vertical=true;edgeStyle=none;endArrow=none;useSignPosition=left;useSignDirection=south;', 0, 160, '', "Use"));
-        content.appendChild(ui.sidebar.createEdgeTemplate('shape=useedge;endArrow=none;edgeStyle=none;useSignPosition=up;useSignDirection=east;', 160, 0, ''));
-        content.appendChild(ui.sidebar.createEdgeTemplate('rounded=1;shape=useedge;vertical=true;edgeStyle=elbowEdgeStyle;elbow=vertical;endArrow=none;useSignPosition=up;useSignDirection=east;', 70, 160, ''));
-        content.appendChild(ui.sidebar.createEdgeTemplate('rounded=1;shape=useedge;edgeStyle=elbowEdgeStyle;elbow=horizontal;endArrow=none;useSignPosition=left;useSignDirection=south;', 160, 70, ''));
-        content.appendChild(ui.sidebar.createVertexTemplate('rounded=1;whiteSpace=wrap;html=1;arcSize=60;strokeWidth=2;', 90, 40, ''));
+        content.appendChild(ui.sidebar.createEdgeTemplate('shape=useedge;vertical=true;edgeStyle=none;endArrow=none;useSignPosition=left;useSignDirection=south;', 0, 160, '', 'Vertical Channel'));
+        content.appendChild(ui.sidebar.createEdgeTemplate('shape=useedge;endArrow=none;edgeStyle=none;useSignPosition=up;useSignDirection=east;', 160, 0, '', 'Horizontal Channel'));
+        content.appendChild(ui.sidebar.createEdgeTemplate('rounded=1;shape=useedge;vertical=true;edgeStyle=elbowEdgeStyle;elbow=vertical;endArrow=none;useSignPosition=up;useSignDirection=east;', 70, 160, '', 'Vertical S-Channel'));
+        content.appendChild(ui.sidebar.createEdgeTemplate('rounded=1;shape=useedge;edgeStyle=elbowEdgeStyle;elbow=horizontal;endArrow=none;useSignPosition=left;useSignDirection=south;', 160, 70, '', 'Horizontal S-Channel'));
+        content.appendChild(ui.sidebar.createVertexTemplate('rounded=1;whiteSpace=wrap;html=1;arcSize=60;strokeWidth=2;', 90, 40, '', 'Storage'));
         content.appendChild(ui.sidebar.createEdgeTemplateFromCells([VerticalUpdateEdgeCodec.prototype.create()], 160, 0, 'Vertical Access'));
         content.appendChild(ui.sidebar.createEdgeTemplateFromCells([HorizontalUpdateEdgeCodec.prototype.create()], 160, 0, 'Horizontal Access'));
-        content.appendChild(ui.sidebar.createVertexTemplate('shape=agent;offsetSize=8;strokeWidth=2;', 100, 60, ''));
-        content.appendChild(ui.sidebar.createVertexTemplate('shape=agent;offsetSize=8;strokeWidth=2;multiple=true;', 100, 60, ''));
-        content.appendChild(ui.sidebar.createVertexTemplate('shape=actor;horizontalLabelPosition=right;align=left;labelPosition=right;strokeWidth=2;', 35, 50, '', 'Human Actor'));
-        content.appendChild(ui.sidebar.createVertexTemplate('shape=actor;horizontalLabelPosition=right;align=left;labelPosition=right;strokeWidth=2;border=0', 35, 50, '', 'Human'));
-        content.appendChild(ui.sidebar.createVertexTemplate('shape=lshape;dx=20;dy=20;strokeWidth=2;labelPosition=center;verticalLabelPosition=middle;align=center;verticalAlign=top;', 100, 100, ''));
-        content.appendChild(ui.sidebar.createVertexTemplate('shape=ushape;dx=20;dy=80;strokeWidth=2;labelPosition=center;verticalLabelPosition=middle;align=center;verticalAlign=bottom;', 100, 100, ''));
-        content.appendChild(ui.sidebar.createEdgeTemplate(arrowPrefix + 'elbow=vertical;endArrow=classic;endFill=1;align=center;', 80, 80, ''));
-        content.appendChild(ui.sidebar.createEdgeTemplate(arrowPrefix + 'elbow=horizontal;endArrow=classic;endFill=1;align=left;', 80, 80, ''));
-        content.appendChild(ui.sidebar.createEdgeTemplate(arrowPrefix + 'elbow=horizontal;endArrow=none;endFill=0;align=left;', 80, 80, ''));
-        content.appendChild(ui.sidebar.createEdgeTemplate(arrowPrefix + 'elbow=vertical;endArrow=none;endFill=0;align=center;', 80, 80, ''));
+        content.appendChild(ui.sidebar.createVertexTemplate('shape=agent;offsetSize=8;strokeWidth=2;', 100, 60, '', 'Agent'));
+        content.appendChild(ui.sidebar.createVertexTemplate('shape=agent;offsetSize=8;strokeWidth=2;multiple=true;', 100, 60, '', 'Stacked Agents'));
+        content.appendChild(ui.sidebar.createVertexTemplate('shape=actor;horizontalLabelPosition=right;align=left;labelPosition=right;strokeWidth=2;aspect=fixed;', 35, 50, '', 'Human Actor'));
+        content.appendChild(ui.sidebar.createVertexTemplate('shape=actor;horizontalLabelPosition=right;align=left;labelPosition=right;strokeWidth=2;border=0;aspect=fixed;', 35, 50, '', 'Human'));
+        content.appendChild(ui.sidebar.createVertexTemplate('shape=lshape;dx=20;dy=20;strokeWidth=2;labelPosition=center;verticalLabelPosition=middle;align=center;verticalAlign=top;', 100, 100, '', 'L-Agent'));
+        content.appendChild(ui.sidebar.createVertexTemplate('shape=ushape;dx=20;dy=80;strokeWidth=2;labelPosition=center;verticalLabelPosition=middle;align=center;verticalAlign=bottom;', 100, 100, '', 'U-Agent'));
+        content.appendChild(ui.sidebar.createEdgeTemplate(arrowPrefix + 'elbow=vertical;endArrow=classic;endFill=1;align=center;', 80, 80, '', 'Vertical Uni-Directional S-Access'));
+        content.appendChild(ui.sidebar.createEdgeTemplate(arrowPrefix + 'elbow=horizontal;endArrow=classic;endFill=1;align=left;', 80, 80, '', 'Horizontal Uni-Directional S-Access'));
+        content.appendChild(ui.sidebar.createEdgeTemplate(arrowPrefix + 'elbow=horizontal;endArrow=none;endFill=0;align=left;', 80, 80, '', 'Vertical Bi-Directional S-Access'));
+        content.appendChild(ui.sidebar.createEdgeTemplate(arrowPrefix + 'elbow=vertical;endArrow=none;endFill=0;align=center;', 80, 80, '', 'Horizontal Bi-Directional S-Access'));
     });
 
     ui.sidebar.addPalette('tamAnnotate', 'TAM / Annotate', true, function (content) {
         content.appendChild(ui.sidebar.createVertexTemplate('rounded=0;whiteSpace=wrap;html=1;strokeWidth=0;strokeColor=none;fillColor=#E6E6E6;align=left;verticalAlign=top;spacingLeft=2;', 140, 80, '', 'Area'));
-        content.appendChild(ui.sidebar.createVertexTemplate('shape=dot3;vertical=true;connectable=0;', 15, 55, ''));
-        content.appendChild(ui.sidebar.createVertexTemplate('shape=dot3;connectable=0;', 55, 15, ''));
+        content.appendChild(ui.sidebar.createVertexTemplate('shape=dot3;vertical=true;connectable=0;aspect=fixed;', 15, 55, '', 'Vertical Ellipsis'));
+        content.appendChild(ui.sidebar.createVertexTemplate('shape=dot3;connectable=0;aspect=fixed;', 55, 15, '', 'Horizontal Ellipsis'));
         content.appendChild(ui.sidebar.createEdgeTemplate('edgeStyle=elbowEdgeStyle;dashed=1;dashPattern=5 5;strokeWidth=2;arcSize=0;startArrow=none;endArrow=none;startSize=0;endSize=0;html=1;endFill=0;align=left;resizeWidth=0;rounded=0;', 0, 300, '', 'Border Vertical'))
         content.appendChild(ui.sidebar.createEdgeTemplate('edgeStyle=elbowEdgeStyle;dashed=1;dashPattern=5 5;strokeWidth=2;arcSize=0;startArrow=none;endArrow=none;startSize=0;endSize=0;html=1;endFill=0;align=center;resizeHeight=0;rounded=0;', 300, 0, '', 'Border Horizontal'))
         content.appendChild(ui.sidebar.createVertexTemplate('shape=note2;boundedLbl=1;whiteSpace=wrap;html=1;size=10;spacingLeft=2;verticalAlign=top;align=left;fillColor=#FFFFFF;connectable=1', 70, 70, '', 'Note'));
@@ -786,14 +786,14 @@ Draw.loadPlugin(function (ui) {
 
     ui.sidebar.addPalette('tamActivity', 'TAM / Activity', false, function (content) {
         content.appendChild(ui.sidebar.createVertexTemplate('rounded=1;whiteSpace=wrap;html=1;strokeWidth=2;arcSize=37', 90, 40, '', 'Action'));
-        content.appendChild(ui.sidebar.createVertexTemplate('ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#000000;', 30, 30, '', 'Start of Activity'));
-        content.appendChild(ui.sidebar.createVertexTemplate('shape=endactivity;strokeWidth=2;fillColor=#000000;', 30, 30, '', 'End of Activity'));
-        content.appendChild(ui.sidebar.createVertexTemplate('rhombus;html=1;strokeWidth=2;', 30, 30, '', 'Decision or Merge'));
-        content.appendChild(ui.sidebar.createEdgeTemplate(arrowPrefix + 'elbow=vertical;endArrow=classic;endFill=1;align=center;', 80, 80, ''));
-        content.appendChild(ui.sidebar.createEdgeTemplate(arrowPrefix + 'elbow=horizontal;endArrow=classic;endFill=1;align=left;', 80, 80, ''));
-        content.appendChild(ui.sidebar.createEdgeTemplate('edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;startArrow=none;startFill=0;endArrow=classic;endFill=1;startSize=6;endSize=6;align=center;fontSize=12;labelBackgroundColor=none;', 40, 40, '', 'Arrow'));
+        content.appendChild(ui.sidebar.createVertexTemplate('ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#000000;aspect=fixed;', 30, 30, '', 'Start of Activity'));
+        content.appendChild(ui.sidebar.createVertexTemplate('shape=endactivity;strokeWidth=2;fillColor=#000000;aspect=fixed;', 30, 30, '', 'End of Activity'));
+        content.appendChild(ui.sidebar.createVertexTemplate('rhombus;html=1;strokeWidth=2;aspect=fixed;', 30, 30, '', 'Decision or Merge'));
+        content.appendChild(ui.sidebar.createEdgeTemplate(arrowPrefix + 'elbow=vertical;endArrow=classic;endFill=1;align=center;', 80, 80, '', 'Vertical  S-Flow'));
+        content.appendChild(ui.sidebar.createEdgeTemplate(arrowPrefix + 'elbow=horizontal;endArrow=classic;endFill=1;align=left;', 80, 80, '', 'Horizontal S-Flow'));
+        content.appendChild(ui.sidebar.createEdgeTemplate('edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;startArrow=none;startFill=0;endArrow=classic;endFill=1;startSize=6;endSize=6;align=center;fontSize=12;labelBackgroundColor=none;', 40, 40, '', 'L-Flow'));
         content.appendChild(ui.sidebar.createVertexTemplate('line;strokeWidth=13;html=1;fillColor=default;', 120, 10, '', 'Fork or Join'));
-        content.appendChild(ui.sidebar.createVertexTemplate('shape=sumEllipse;perimeter=ellipsePerimeter;whiteSpace=wrap;html=1;backgroundOutline=1;strokeWidth=2;', 30, 30, '', 'End of Flow'));
+        content.appendChild(ui.sidebar.createVertexTemplate('shape=sumEllipse;perimeter=ellipsePerimeter;whiteSpace=wrap;html=1;backgroundOutline=1;strokeWidth=2;aspect=fixed;', 30, 30, '', 'End of Flow'));
         content.appendChild(ui.sidebar.createVertexTemplate('rounded=0;whiteSpace=wrap;html=1;strokeWidth=2;fillColor=default;', 90, 40, '', 'State'));
     });
 
@@ -810,7 +810,7 @@ Draw.loadPlugin(function (ui) {
         cell.insert(ui.sidebar.cloneCell(field, 'Attribute 1'));
         cell.insert(ui.sidebar.cloneCell(field, 'Operation 1'));
 
-        content.appendChild(ui.sidebar.createVertexTemplateFromCells([cell], cell.geometry.width, cell.geometry.height, '', 'Class with compartments'));
+        content.appendChild(ui.sidebar.createVertexTemplateFromCells([cell], cell.geometry.width, cell.geometry.height, 'Class with compartments'));
 
         const edgeTemplate = new mxCell('', new mxGeometry(0, 0, 80, 80),
             'edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;endArrow=0;endFill=0;startSize=15;endSize=15;align=center;fontSize=12;labelBackgroundColor=none;');
@@ -837,15 +837,15 @@ Draw.loadPlugin(function (ui) {
         const e1 = edgeTemplate;
         const origStyle = e1.style;
         e1.style = origStyle + ';startArrow=none;startFill=0;'
-        content.appendChild(ui.sidebar.createEdgeTemplateFromCells([e1], e1.geometry.width, e1.geometry.height, '', 'Association'));
+        content.appendChild(ui.sidebar.createEdgeTemplateFromCells([e1], e1.geometry.width, e1.geometry.height, 'Association'));
 
         e1.style = origStyle + ';startArrow=diamondThin;startFill=0;'
-        content.appendChild(ui.sidebar.createEdgeTemplateFromCells([e1], e1.geometry.width, e1.geometry.height, '', 'Aggregation'));
+        content.appendChild(ui.sidebar.createEdgeTemplateFromCells([e1], e1.geometry.width, e1.geometry.height, 'Aggregation'));
 
         e1.style = origStyle + ';startArrow=diamondThin;startFill=1;'
-        content.appendChild(ui.sidebar.createEdgeTemplateFromCells([e1], e1.geometry.width, e1.geometry.height, '', 'Composition'));
+        content.appendChild(ui.sidebar.createEdgeTemplateFromCells([e1], e1.geometry.width, e1.geometry.height, 'Composition'));
 
-        content.appendChild(ui.sidebar.createEdgeTemplate('endArrow=block;html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;endFill=0;strokeWidth=1;endSize=14', 80, 80, '', 'Specialization'));
+        content.appendChild(ui.sidebar.createEdgeTemplate('endArrow=block;html=1;rounded=1;edgeStyle=orthogonalEdgeStyle;endFill=0;strokeWidth=1;endSize=14', 80, 80, '', 'Specialization'));
     });
 
     ui.sidebar.setCurrentSearchEntryLibrary();
