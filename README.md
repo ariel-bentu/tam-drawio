@@ -84,6 +84,11 @@ This plugin adds some components to draw.io, which cover the common components u
       or create new diagram. That will install plugin for the current editor session.
 - If anyone has an idea how to permanently enable plugin in `app.diagrams.net`, please speak-up
 
+### Verify installation
+An installation is successful, if you see TAM's new toolbar side-pannels, and 2 new buttons in the toolbar (as depicted in this screenshot).
+
+<img height="400px" src="./resources/successful-installation.png"/>
+
 ### Configuration:
 - Adding hidden text in the model for those who do not have the plugin:
 
