@@ -17,16 +17,19 @@ const uglify = require('uglify-js');
     const html = await fs.promises.readFile('resources/index.template.html', 'utf8');
 
     console.log('Writing docs/index.html');
-    const escapedScript = result.code
-        .replace(/</g, '&#60;')
-        .replace(/>/g, '&#62;')
-        .replace(/"/g, '&#34;')
-        .replace(/\\/g, '&#92;');
+    const escapeMap = {
+        '"': '&#34;',
+        '<': '&#60;',
+        '>': '&#62;',
+        '\\': '&#92;'
+    };
+    const escapedScript = result.code.split('').map(c => escapeMap[c] ?? c).join('');
+    const base64EncodedScript = btoa(result.code);
     await fs.promises.writeFile(
         'docs/index.html',
         html
             .replace(/<!-- bookmarklet start \/-->.+?<!-- bookmarklet end \/-->/gim, `<a class="link-button" href="javascript:${escapedScript}">Add TAM Plugin</a>`)
-            .replace(/<!-- download start \/-->.+?<!-- download end \/-->/gim, `<a class="link-button" href="data:application/javascript,${escapedScript}" download="tam-drawio">Download TAM Plugin</a>`)
+            .replace(/<!-- download start \/-->.+?<!-- download end \/-->/gim, `<a class="link-button" href="data:application/javascript;base64,${base64EncodedScript}" download="tam-drawio">Download TAM Plugin</a>`)
     );
 
     console.log('==================================');
