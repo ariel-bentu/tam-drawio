@@ -57,6 +57,11 @@ This plugin adds some components to draw.io, which cover the common components u
 - ~/Library/Application Support   on macOS
 ```
 
+
+#### Note for Draw.io 21.3.0 release and after!!!
+- The Sidepanel does not show the TAM elements in Dark mode.
+- Select Light mode and restart.
+
 ### Install in VSCode
 - Assuming you have Drawio vs-code extension. If not: [Get It](https://marketplace.visualstudio.com/items?itemName=hediet.vscode-drawio)
 - Open the Settings
