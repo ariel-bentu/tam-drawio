@@ -17,6 +17,8 @@
     "url": "https://github.com/ariel-bentu/tam-drawio/issues"
   },
   "devDependencies": {
+    "connect": "^3.7.0",
+    "serve-static": "^1.15.0",
     "uglify-js": "^3.15.3"
   }
 }
