@@ -472,7 +472,6 @@ Draw.loadPlugin(function (ui) {
             }
 
             let dx, dy;
-            let tpts, rpt
             const distance = 20;
 
             switch (useSignPosition) {
@@ -494,50 +493,91 @@ Draw.loadPlugin(function (ui) {
                     dy = -distance;
                     dx = 0;
             }
+            let shapes = [];
             switch (useSignDirection) {
                 case mxConstants.NONE:
-                    tpts = [];
-                    rpt = [-5, -5];
+                    if (useSignPosition === tamConstants.LEFT || useSignPosition === tamConstants.RIGHT) {
+                        shapes.push({
+                            dx: dx,
+                            dy: dy - 8,
+                            tpts: [[-5, 0], [0, -10], [5, 0], [0, -2],],
+                            rpt: [-5, 2]
+                        });
+                        shapes.push({
+                            dx: 0,
+                            dy: 16,
+                            tpts: [[-5, 0], [0, 10], [5, 0], [0, 2],
+                        ]
+                        });
+                    } else {
+                        shapes.push({
+                            dx: dx - 8,
+                            dy: dy,
+                            tpts: [ [0, -5], [-10, 0], [0, 5], [-2, 0],],
+                            rpt: [4, -5]
+                        });
+                        shapes.push({
+                            dx: 16,
+                            dy: 0,
+                            tpts: [[0, -5], [10, 0], [0, 5], [2, 0],]
+                        });                        
+                    }
                     break;
                 case mxConstants.DIRECTION_NORTH:
-                    dy += -5;
-                    tpts = [[-5, 0], [0, -10], [5, 0], [0, -2]];
-                    rpt = [-5, 5]
+                    shapes.push({
+                        dx: dx,
+                        dy: dy - 5,
+                        tpts: [[-5, 0], [0, -10], [5, 0], [0, -2]],
+                        rpt: [-5, 5]
+                    });
                     break;
                 case mxConstants.DIRECTION_SOUTH:
-                    dy += 5;
-                    tpts = [[-5, 0], [0, 10], [5, 0], [0, 2]];
-                    rpt = [-5, -15]
+                    shapes.push({
+                        dx: dx,
+                        dy: dy + 5,
+                        tpts: [[-5, 0], [0, 10], [5, 0], [0, 2]],
+                        rpt: [-5, -15]
+                    });
                     break;
                 case mxConstants.DIRECTION_WEST:
-                    dx += -5;
-                    tpts = [[0, -5], [-10, 0], [0, 5], [-2, 0]];
-                    rpt = [5, -5]
+                    shapes.push({
+                        dx: dx - 5,
+                        dy: dy,
+                        tpts: [[0, -5], [-10, 0], [0, 5], [-2, 0]],
+                        rpt: [5, -5]
+                    });
                     break;
                 case mxConstants.DIRECTION_EAST:
                 default:
-                    dx += 5;
-                    tpts = [[0, -5], [10, 0], [0, 5], [2, 0]];
-                    rpt = [-15, -5]
+                    shapes.push({
+                        dx: dx + 5,
+                        dy: dy,
+                        tpts: [[0, -5], [10, 0], [0, 5], [2, 0]],
+                        rpt: [-15, -5]
+                    });
             }
-            c.translate(x + dx, y + dy);
-            if (useSignDirection !== mxConstants.NONE) {
-                c.begin()
-
-                c.moveTo(tpts[0][0], tpts[0][1]);
-                for (let i = 1; i < tpts.length; i++) {
-                    c.lineTo(tpts[i][0], tpts[i][1]);
+            if (shapes.length > 0) {
+                c.translate(x, y);
+            }
+            let shape;
+            for (shape of shapes) {
+                c.translate(shape.dx, shape.dy);
+                c.begin();
+                c.moveTo(shape.tpts[0][0], shape.tpts[0][1]);
+                for (let i = 1; i < shape.tpts.length; i++) {
+                    c.lineTo(shape.tpts[i][0], shape.tpts[i][1]);
                 }
-                c.lineTo(tpts[0][0], tpts[0][1]);
-
+                c.lineTo(shape.tpts[0][0], shape.tpts[0][1]);
                 c.close();
                 c.end();
-                c.setFillColor(this.stroke)
+                c.setFillColor(this.stroke);
                 c.fillAndStroke();
 
                 //Output the R
-                c.setFontColor(this.stroke)
-                c.text(rpt[0], rpt[1], 10, 10, "R");
+                if (shape.rpt) {
+                    c.setFontColor(this.stroke);
+                    c.text(shape.rpt[0], shape.rpt[1], 10, 10, "R");
+                }
             }
 
             // Disables shadows, dashed styles and fixes fill color for markers
