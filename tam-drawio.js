@@ -648,6 +648,37 @@ Draw.loadPlugin(function (ui) {
         }
     }
 
+    class QueueShape extends mxRectangleShape {
+        paintVertexShape(c, x, y, w, h) {
+            c.translate(x, y);
+            
+            c.begin();
+            c.setStrokeWidth(2);
+            c.roundrect(0, 0, w, h, h/2, h/2);
+            c.end();
+            c.fillAndStroke();
+
+            c.begin();
+            c.setStrokeWidth(1);
+            c.moveTo(15, h/2);
+            c.lineTo(w - 15, h/2);
+            c.end();
+            c.stroke();
+            
+            c.setFillColor(this.stroke);
+            c.translate(w - 15 - 10, h/2);
+            c.begin();
+            c.moveTo(2, 0);
+            c.lineTo(0, 5);
+            c.lineTo(10, 0);
+            c.lineTo(0, -5);
+            c.lineTo(2, 0);
+            c.close();
+            c.end();
+            c.fillAndStroke();
+        }
+    }
+
     class LShape extends mxRectangleShape {
         paintVertexShape(c, x, y, w, h) {
             const margin = mxUtils.getValue(this.style, 'margin', h / 10);
@@ -729,6 +760,7 @@ Draw.loadPlugin(function (ui) {
     mxCellRenderer.registerShape('lshape', LShape);
     mxCellRenderer.registerShape('ushape', UShape);
     mxCellRenderer.registerShape('endactivity', EndActivity);
+    mxCellRenderer.registerShape('queue', QueueShape);
 
     tamShapes.push('updateedge');
     tamShapes.push('useedge');
@@ -738,6 +770,7 @@ Draw.loadPlugin(function (ui) {
     tamShapes.push('lshape');
     tamShapes.push('ushape');
     tamShapes.push('endactivity');
+    tamShapes.push('queue');
 
 
 
@@ -770,6 +803,7 @@ Draw.loadPlugin(function (ui) {
         content.appendChild(ui.sidebar.createEdgeTemplate(arrowPrefix + 'elbow=horizontal;endArrow=classic;endFill=1;align=left;', 80, 80, '', 'Horizontal Uni-Directional S-Access'));
         content.appendChild(ui.sidebar.createEdgeTemplate(arrowPrefix + 'elbow=horizontal;endArrow=none;endFill=0;align=left;', 80, 80, '', 'Vertical Bi-Directional S-Access'));
         content.appendChild(ui.sidebar.createEdgeTemplate(arrowPrefix + 'elbow=vertical;endArrow=none;endFill=0;align=center;', 80, 80, '', 'Horizontal Bi-Directional S-Access'));
+        content.appendChild(ui.sidebar.createVertexTemplate('shape=queue;strokeWidth=2;verticalLabelPosition=bottom', 70, 30, '', 'Queue'));
     });
 
     ui.sidebar.addPalette('tamAnnotate', 'TAM / Annotate', true, function (content) {
