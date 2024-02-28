@@ -430,7 +430,7 @@ Draw.loadPlugin(function (ui) {
                 new mxPoint(x - lineDirectionCoefficient * circleRadius, y);
             //ui.editor.setStatus(rectMsg + "--" + JSON.stringify(pts) + "--" + cpt.x + "," + cpt.y)
             let pts1 = [...pts.slice(0, p0 + 1), cpt]
-            const strokeWidth = c.getCurrentStrokeWidth();
+            const strokeWidth = c.state.strokeWidth;
             c.setStrokeWidth(strokeWidth);
             drawEdge(pts1);
 
