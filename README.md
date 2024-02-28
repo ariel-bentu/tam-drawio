@@ -149,10 +149,10 @@ The best way to debug the code is to load the plugin on an html version of draw.
     if (urlParams['dev'] == '1')
 		{
 	    // Used to request grapheditor/mxgraph sources in dev mode
-			var mxDevUrl = document.location.protocol + '//devhost.jgraph.com/drawio/src/main';
+			var mxDevUrl = document.location.protocol + '//localhost:8080/';
 			
 			// Used to request draw.io sources in dev mode
-			var drawDevUrl = document.location.protocol + '//devhost.jgraph.com/drawio/src/main/webapp/';
+			var drawDevUrl = document.location.protocol + '//localhost:8080/';
 		
 ```
 - Run: `node drawio.js` and access the server `http://localhost:8080?dev=1`

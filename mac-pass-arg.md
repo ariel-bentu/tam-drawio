@@ -3,7 +3,7 @@
 - Close all instances of the draw.io application
 - (Optional) Depending on how you installed the desktop application, you may be not the owner of it's files (in my case it was owned by root user). To make the process of application modification easier and not use sudo with every command, it would be convenient to change ownership of the application files.
  
-`chown -R `whoami`:staff /Applications/draw.io.app`
+``chown -R `whoami`:staff /Applications/draw.io.app``
  
 You are going to modify contents of signed application, so you need to make it not signed (kind of switching it to a development mode). For this purpose delete (or rename) the folder with code resources checksums
  
