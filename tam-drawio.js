@@ -211,7 +211,13 @@ Draw.loadPlugin(function (ui) {
         UP: 'up',
         DOWN: 'down',
         LEFT: 'left',
-        RIGHT: 'right'
+        RIGHT: 'right',
+        DIRECTION_EAST: 'east',
+        DIRECTION_WEST: 'west',
+        DIRECTION_NORTH: 'north',
+        DIRECTION_SOUTH: 'south',
+        DIRECTION_BOTH: 'both',
+        NONE: 'none',
     };
 
     const rotatePosition = {
@@ -222,20 +228,22 @@ Draw.loadPlugin(function (ui) {
     };
 
     const rotateDirection = {
-        [mxConstants.DIRECTION_NORTH]: mxConstants.DIRECTION_EAST,
-        [mxConstants.DIRECTION_SOUTH]: mxConstants.DIRECTION_WEST,
-        [mxConstants.DIRECTION_EAST]: mxConstants.DIRECTION_NORTH,
-        [mxConstants.DIRECTION_WEST]: mxConstants.DIRECTION_SOUTH,
-        [mxConstants.NONE]: mxConstants.NONE,
-
+        [tamConstants.DIRECTION_NORTH]: tamConstants.DIRECTION_EAST,
+        [tamConstants.DIRECTION_SOUTH]: tamConstants.DIRECTION_WEST,
+        [tamConstants.DIRECTION_EAST]: tamConstants.DIRECTION_NORTH,
+        [tamConstants.DIRECTION_WEST]: tamConstants.DIRECTION_SOUTH,
+        [tamConstants.DIRECTION_BOTH]: tamConstants.DIRECTION_BOTH,
+        [tamConstants.NONE]: tamConstants.NONE,
+        
     };
-
+    
     const flipDirection = {
-        [mxConstants.DIRECTION_NORTH]: mxConstants.DIRECTION_SOUTH,
-        [mxConstants.DIRECTION_SOUTH]: mxConstants.DIRECTION_NORTH,
-        [mxConstants.DIRECTION_EAST]: mxConstants.DIRECTION_WEST,
-        [mxConstants.DIRECTION_WEST]: mxConstants.DIRECTION_EAST,
-        [mxConstants.NONE]: mxConstants.NONE,
+        [tamConstants.DIRECTION_NORTH]: tamConstants.DIRECTION_SOUTH,
+        [tamConstants.DIRECTION_SOUTH]: tamConstants.DIRECTION_NORTH,
+        [tamConstants.DIRECTION_EAST]: tamConstants.DIRECTION_WEST,
+        [tamConstants.DIRECTION_WEST]: tamConstants.DIRECTION_EAST,
+        [tamConstants.DIRECTION_BOTH]: tamConstants.DIRECTION_BOTH,
+        [tamConstants.NONE]: tamConstants.NONE,
     }
 
     const tamUtils = {
@@ -495,7 +503,7 @@ Draw.loadPlugin(function (ui) {
             }
             let shapes = [];
             switch (useSignDirection) {
-                case mxConstants.NONE:
+                case tamConstants.DIRECTION_BOTH:
                     if (useSignPosition === tamConstants.LEFT || useSignPosition === tamConstants.RIGHT) {
                         shapes.push({
                             dx: dx,
@@ -523,7 +531,7 @@ Draw.loadPlugin(function (ui) {
                         });                        
                     }
                     break;
-                case mxConstants.DIRECTION_NORTH:
+                case tamConstants.DIRECTION_NORTH:
                     shapes.push({
                         dx: dx,
                         dy: dy - 5,
@@ -531,7 +539,7 @@ Draw.loadPlugin(function (ui) {
                         rpt: [-5, 5]
                     });
                     break;
-                case mxConstants.DIRECTION_SOUTH:
+                case tamConstants.DIRECTION_SOUTH:
                     shapes.push({
                         dx: dx,
                         dy: dy + 5,
@@ -539,7 +547,7 @@ Draw.loadPlugin(function (ui) {
                         rpt: [-5, -15]
                     });
                     break;
-                case mxConstants.DIRECTION_WEST:
+                case tamConstants.DIRECTION_WEST:
                     shapes.push({
                         dx: dx - 5,
                         dy: dy,
@@ -547,14 +555,16 @@ Draw.loadPlugin(function (ui) {
                         rpt: [5, -5]
                     });
                     break;
-                case mxConstants.DIRECTION_EAST:
-                default:
+                case tamConstants.DIRECTION_EAST:
                     shapes.push({
                         dx: dx + 5,
                         dy: dy,
                         tpts: [[0, -5], [10, 0], [0, 5], [2, 0]],
                         rpt: [-15, -5]
                     });
+                case tamConstants.NONE:
+                default:
+                    break;
             }
             if (shapes.length > 0) {
                 c.translate(x, y);
@@ -925,16 +935,19 @@ Draw.loadPlugin(function (ui) {
             // east => west => none => east => ...
             switch (style.useSignDirection) {
                 case 'north':
-                    style.useSignDirection = 'none'
+                    style.useSignDirection = 'both'
                     break;
                 case 'south':
                     style.useSignDirection = 'north'
                     break;
                 case 'west':
-                    style.useSignDirection = 'none'
+                    style.useSignDirection = 'both'
                     break;
                 case 'east':
                     style.useSignDirection = 'west'
+                    break;
+                case 'both':
+                    style.useSignDirection = 'none';
                     break;
                 case 'none':
                     style.useSignDirection = isVertical ? 'east' : 'south';
