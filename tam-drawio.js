@@ -704,28 +704,47 @@ Draw.loadPlugin(function (ui) {
             
             c.begin();
             c.setStrokeWidth(2);
-            c.roundrect(0, 0, w, h, h/2, h/2);
+            c.roundrect(0, 0, w, h, h / 2, h / 2);
             c.end();
             c.fillAndStroke();
 
             c.begin();
             c.setStrokeWidth(1);
-            c.moveTo(15, h/2);
-            c.lineTo(w - 15, h/2);
+            c.moveTo(15, h / 2);
+            c.lineTo(w - 15, h / 2);
             c.end();
             c.stroke();
             
+            let useSignDirection = mxUtils.getValue(this.style, 'useSignDirection', 'east');
             c.setFillColor(this.stroke);
-            c.translate(w - 15 - 10, h/2);
-            c.begin();
-            c.moveTo(2, 0);
-            c.lineTo(0, 5);
-            c.lineTo(10, 0);
-            c.lineTo(0, -5);
-            c.lineTo(2, 0);
-            c.close();
-            c.end();
-            c.fillAndStroke();
+            let yOffset = h / 2;
+            let xOffset = 0;
+            if (useSignDirection === 'west' || useSignDirection === 'both') {
+                c.translate(15 + 10, yOffset);
+                yOffset = 0;
+                xOffset = 15 + 10;
+                c.begin();
+                c.moveTo(-2, 0);
+                c.lineTo(0, 5);
+                c.lineTo(-10, 0);
+                c.lineTo(0, -5);
+                c.lineTo(-2, 0);
+                c.close();
+                c.end();
+                c.fillAndStroke();
+            }
+            if (useSignDirection === 'east' || useSignDirection === 'both') {
+                c.translate(w - 15 - 10 - xOffset , yOffset);
+                c.begin();
+                c.moveTo(2, 0);
+                c.lineTo(0, 5);
+                c.lineTo(10, 0);
+                c.lineTo(0, -5);
+                c.lineTo(2, 0);
+                c.close();
+                c.end();
+                c.fillAndStroke();
+            }
         }
     }
 
@@ -853,7 +872,7 @@ Draw.loadPlugin(function (ui) {
         content.appendChild(ui.sidebar.createEdgeTemplate(arrowPrefix + 'elbow=horizontal;endArrow=classic;endFill=1;align=left;', 80, 80, '', 'Horizontal Uni-Directional S-Access'));
         content.appendChild(ui.sidebar.createEdgeTemplate(arrowPrefix + 'elbow=horizontal;endArrow=none;endFill=0;align=left;', 80, 80, '', 'Vertical Bi-Directional S-Access'));
         content.appendChild(ui.sidebar.createEdgeTemplate(arrowPrefix + 'elbow=vertical;endArrow=none;endFill=0;align=center;', 80, 80, '', 'Horizontal Bi-Directional S-Access'));
-        content.appendChild(ui.sidebar.createVertexTemplate('shape=queue;strokeWidth=2;verticalLabelPosition=bottom', 70, 30, '', 'Queue'));
+        content.appendChild(ui.sidebar.createVertexTemplate('shape=queue;strokeWidth=2;verticalLabelPosition=bottom;useSignDirection=east;', 70, 30, '', 'Queue'));
     });
 
     ui.sidebar.addPalette('tamAnnotate', 'TAM / Annotate', true, function (content) {
@@ -961,32 +980,47 @@ Draw.loadPlugin(function (ui) {
             const cells = ui.editor.graph.getSelectionCells();
             let style = tamUtils.getStyleObject(cells[0].style);
             let isVertical = style.edgeStyle == 'elbowEdgeStyle' ? style.vertical : !style.vertical;
-            if (style.shape !== 'useedge') {
+            if (style.shape === 'useedge') {
+                // south => north => both => none => south => ...
+                // east => west => both => none => east => ...
+                switch (style.useSignDirection) {
+                    case 'north':
+                        style.useSignDirection = 'both'
+                        break;
+                    case 'south':
+                        style.useSignDirection = 'north'
+                        break;
+                    case 'west':
+                        style.useSignDirection = 'both'
+                        break;
+                    case 'east':
+                        style.useSignDirection = 'west'
+                        break;
+                    case 'both':
+                        style.useSignDirection = 'none';
+                        break;
+                    case 'none':
+                    default:
+                        style.useSignDirection = isVertical ? 'east' : 'south';
+                        break;
+                }
+            } else if (style.shape === 'queue') {
+                // east => west => both => east => ...
+                switch (style.useSignDirection) {
+                    case 'east':
+                        style.useSignDirection = 'west'
+                        break;
+                    case 'west':
+                        style.useSignDirection = 'both'
+                        break;
+                    case 'both':
+                    default:
+                        style.useSignDirection = 'east'
+                }
+            } else {
                 return;
             }
 
-            // south => north => none => south => ...
-            // east => west => none => east => ...
-            switch (style.useSignDirection) {
-                case 'north':
-                    style.useSignDirection = 'both'
-                    break;
-                case 'south':
-                    style.useSignDirection = 'north'
-                    break;
-                case 'west':
-                    style.useSignDirection = 'both'
-                    break;
-                case 'east':
-                    style.useSignDirection = 'west'
-                    break;
-                case 'both':
-                    style.useSignDirection = 'none';
-                    break;
-                case 'none':
-                    style.useSignDirection = isVertical ? 'east' : 'south';
-                    break;
-            }
 
             cells[0].setStyle(mxUtils.setStyle(cells[0].style, 'useSignDirection', style.useSignDirection));
             ui.editor.graph.refresh(cells[0]);
