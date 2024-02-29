@@ -156,6 +156,26 @@ Draw.loadPlugin(function (ui) {
         c.stroke();
     }
 
+    const innerArrowPoints = {
+        'east': [[2, 0], [0, 5], [10, 0], [0, -5], [2, 0]],
+        'west': [[-2, 0], [0, 5], [-10, 0], [0, -5], [-2, 0]],
+        'north': [[0, -2], [-5, 0], [0, -10], [5, 0], [0, -2]],
+        'south': [[0, 2], [-5, 0], [0, 10], [5, 0], [0, 2]]
+    }
+
+    function drawInnerArrow(c, offsetX, offsetY, direction) {
+        const points = innerArrowPoints[direction];
+        c.translate(offsetX, offsetY);
+        c.begin();
+        c.moveTo(points[0][0], points[0][1]);
+        for (let i = 1; i < points.length; i++) {
+            c.lineTo(points[i][0], points[i][1]);
+        }
+        c.close();
+        c.end();
+        c.fillAndStroke();
+    }
+
     function drawRect(c, x, y, w, h) {
         c.begin();
         c.moveTo(x, y);
@@ -501,97 +521,48 @@ Draw.loadPlugin(function (ui) {
                     dy = -distance;
                     dx = 0;
             }
-            let shapes = [];
+            c.translate(x, y);
+            c.setFillColor(this.stroke);
+            let rpt;
             switch (useSignDirection) {
                 case tamConstants.DIRECTION_BOTH:
                     if (useSignPosition === tamConstants.LEFT || useSignPosition === tamConstants.RIGHT) {
-                        shapes.push({
-                            dx: dx,
-                            dy: dy - 8,
-                            tpts: [[-5, 0], [0, -10], [5, 0], [0, -2],],
-                            rpt: [-5, 2]
-                        });
-                        shapes.push({
-                            dx: 0,
-                            dy: 16,
-                            tpts: [[-5, 0], [0, 10], [5, 0], [0, 2],
-                        ]
-                        });
+                        rpt = [-4, -14];
+                        drawInnerArrow(c, dx, dy - 8, tamConstants.DIRECTION_NORTH);
+                        drawInnerArrow(c, 0, 16, tamConstants.DIRECTION_SOUTH);
                     } else {
-                        shapes.push({
-                            dx: dx - 8,
-                            dy: dy,
-                            tpts: [ [0, -5], [-10, 0], [0, 5], [-2, 0],],
-                            rpt: [4, -5]
-                        });
-                        shapes.push({
-                            dx: 16,
-                            dy: 0,
-                            tpts: [[0, -5], [10, 0], [0, 5], [2, 0],]
-                        });                        
+                        rpt = [-12, -6];
+                        drawInnerArrow(c, dx - 8, dy, tamConstants.DIRECTION_WEST);
+                        drawInnerArrow(c, 16, 0, tamConstants.DIRECTION_EAST);
                     }
                     break;
                 case tamConstants.DIRECTION_NORTH:
-                    shapes.push({
-                        dx: dx,
-                        dy: dy - 5,
-                        tpts: [[-5, 0], [0, -10], [5, 0], [0, -2]],
-                        rpt: [-5, 5]
-                    });
+                    drawInnerArrow(c, dx, dy - 5, tamConstants.DIRECTION_NORTH);
+                    rpt = [-4, 5];
                     break;
                 case tamConstants.DIRECTION_SOUTH:
-                    shapes.push({
-                        dx: dx,
-                        dy: dy + 5,
-                        tpts: [[-5, 0], [0, 10], [5, 0], [0, 2]],
-                        rpt: [-5, -15]
-                    });
+                    drawInnerArrow(c, dx, dy + 5, tamConstants.DIRECTION_SOUTH);
+                    rpt = [-4, -15];
                     break;
                 case tamConstants.DIRECTION_WEST:
-                    shapes.push({
-                        dx: dx - 5,
-                        dy: dy,
-                        tpts: [[0, -5], [-10, 0], [0, 5], [-2, 0]],
-                        rpt: [5, -5]
-                    });
+                    drawInnerArrow(c, dx - 5, dy, tamConstants.DIRECTION_WEST);
+                    rpt = [5, -6];
                     break;
                 case tamConstants.DIRECTION_EAST:
-                    shapes.push({
-                        dx: dx + 5,
-                        dy: dy,
-                        tpts: [[0, -5], [10, 0], [0, 5], [2, 0]],
-                        rpt: [-15, -5]
-                    });
+                    drawInnerArrow(c, dx + 5, dy, tamConstants.DIRECTION_EAST);
+                    rpt = [-15, -6];
                 case tamConstants.NONE:
                 default:
                     break;
             }
-            if (shapes.length > 0) {
-                c.translate(x, y);
-            }
-            let shape;
-            for (shape of shapes) {
-                c.translate(shape.dx, shape.dy);
-                c.begin();
-                c.moveTo(shape.tpts[0][0], shape.tpts[0][1]);
-                for (let i = 1; i < shape.tpts.length; i++) {
-                    c.lineTo(shape.tpts[i][0], shape.tpts[i][1]);
-                }
-                c.lineTo(shape.tpts[0][0], shape.tpts[0][1]);
-                c.close();
-                c.end();
-                c.setFillColor(this.stroke);
-                c.fillAndStroke();
-
-                //Output the R
-                if (shape.rpt) {
-                    c.setFontColor(this.stroke);
-                    c.text(shape.rpt[0], shape.rpt[1], 10, 10, "R");
-                }
+            //Output the R
+            if (rpt) {
+                c.setFontColor(this.stroke);
+                c.text(rpt[0], rpt[1], 10, 10, "R");
             }
 
             // Disables shadows, dashed styles and fixes fill color for markers
-            c.setFillColor(this.stroke);
+            // c.setFillColor(this.stroke);
             c.setShadow(false);
             c.setDashed(false);
 
@@ -717,33 +688,15 @@ Draw.loadPlugin(function (ui) {
             
             let useSignDirection = mxUtils.getValue(this.style, 'useSignDirection', 'east');
             c.setFillColor(this.stroke);
-            let yOffset = h / 2;
-            let xOffset = 0;
+            let offsetY = h / 2;
+            let offsetX = 0;
             if (useSignDirection === 'west' || useSignDirection === 'both') {
-                c.translate(15 + 10, yOffset);
-                yOffset = 0;
-                xOffset = 15 + 10;
-                c.begin();
-                c.moveTo(-2, 0);
-                c.lineTo(0, 5);
-                c.lineTo(-10, 0);
-                c.lineTo(0, -5);
-                c.lineTo(-2, 0);
-                c.close();
-                c.end();
-                c.fillAndStroke();
+                drawInnerArrow(c, 15 + 10, offsetY, tamConstants.DIRECTION_WEST);
+                offsetY = 0;
+                offsetX = 15 + 10;
             }
             if (useSignDirection === 'east' || useSignDirection === 'both') {
-                c.translate(w - 15 - 10 - xOffset , yOffset);
-                c.begin();
-                c.moveTo(2, 0);
-                c.lineTo(0, 5);
-                c.lineTo(10, 0);
-                c.lineTo(0, -5);
-                c.lineTo(2, 0);
-                c.close();
-                c.end();
-                c.fillAndStroke();
+                drawInnerArrow(c, w - 15 - 10 - offsetX , offsetY, tamConstants.DIRECTION_EAST);
             }
         }
     }
