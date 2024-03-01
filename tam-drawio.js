@@ -1,4 +1,78 @@
 Draw.loadPlugin(function (ui) {
+
+    const config = Object.assign(
+        // defaults
+        { addPluginMissingLabel: true },
+        // user settings
+        Editor?.globalVars?.tam
+    );
+
+    const tamConstants = {
+        UP: 'up',
+        DOWN: 'down',
+        LEFT: 'left',
+        RIGHT: 'right',
+        DIRECTION_EAST: 'east',
+        DIRECTION_WEST: 'west',
+        DIRECTION_NORTH: 'north',
+        DIRECTION_SOUTH: 'south',
+        DIRECTION_BOTH: 'both',
+        NONE: 'none',
+    };
+
+    const rotatePosition = {
+        [tamConstants.UP]: tamConstants.LEFT,
+        [tamConstants.DOWN]: tamConstants.RIGHT,
+        [tamConstants.LEFT]: tamConstants.UP,
+        [tamConstants.RIGHT]: tamConstants.DOWN
+    };
+
+    const rotateDirection = {
+        [tamConstants.DIRECTION_NORTH]: tamConstants.DIRECTION_EAST,
+        [tamConstants.DIRECTION_SOUTH]: tamConstants.DIRECTION_WEST,
+        [tamConstants.DIRECTION_EAST]: tamConstants.DIRECTION_NORTH,
+        [tamConstants.DIRECTION_WEST]: tamConstants.DIRECTION_SOUTH,
+        [tamConstants.DIRECTION_BOTH]: tamConstants.DIRECTION_BOTH,
+        [tamConstants.NONE]: tamConstants.NONE,
+        
+    };
+    
+    const flipDirection = {
+        [tamConstants.DIRECTION_NORTH]: tamConstants.DIRECTION_SOUTH,
+        [tamConstants.DIRECTION_SOUTH]: tamConstants.DIRECTION_NORTH,
+        [tamConstants.DIRECTION_EAST]: tamConstants.DIRECTION_WEST,
+        [tamConstants.DIRECTION_WEST]: tamConstants.DIRECTION_EAST,
+        [tamConstants.DIRECTION_BOTH]: tamConstants.DIRECTION_BOTH,
+        [tamConstants.NONE]: tamConstants.NONE,
+    }
+
+    const arrowPointerPts = {
+        [tamConstants.DIRECTION_EAST]: [[2, 0], [0, 5], [10, 0], [0, -5], [2, 0]],
+        [tamConstants.DIRECTION_WEST]: [[-2, 0], [0, 5], [-10, 0], [0, -5], [-2, 0]],
+        [tamConstants.DIRECTION_NORTH]: [[0, -2], [-5, 0], [0, -10], [5, 0], [0, -2]],
+        [tamConstants.DIRECTION_SOUTH]: [[0, 2], [-5, 0], [0, 10], [5, 0], [0, 2]]
+    };
+
+    const tamUtils = {
+        getStyleObject: styleString => styleString
+            .split(';')
+            .reduce(
+                (acc, cur) => (
+                    (([key, val]) => key && (acc[key] = val))(cur.split('=')),
+                    acc
+                ),
+                {}
+            ),
+        getStyleString: styleObj => Object.keys(styleObj)
+            .reduce((acc, cur) => acc + `${cur}=${styleObj[cur]};`, ''),
+        registerCodec: codecClass => {
+            const codec = new mxObjectCodec(new codecClass());
+            codec.encode = enc => enc.document.createElement(codecClass.name);
+            codec.decode = () => new codecClass();
+            mxCodecRegistry.register(codec);
+        }
+    };
+
     const tamShapes = [];
     const isTamPluginMissingLabel = (cell) => cell?.style?.includes("tamPluginMissing");
 
@@ -156,15 +230,10 @@ Draw.loadPlugin(function (ui) {
         c.stroke();
     }
 
-    const innerArrowPoints = {
-        'east': [[2, 0], [0, 5], [10, 0], [0, -5], [2, 0]],
-        'west': [[-2, 0], [0, 5], [-10, 0], [0, -5], [-2, 0]],
-        'north': [[0, -2], [-5, 0], [0, -10], [5, 0], [0, -2]],
-        'south': [[0, 2], [-5, 0], [0, 10], [5, 0], [0, 2]]
-    }
-
-    function drawInnerArrow(c, offsetX, offsetY, direction) {
-        const points = innerArrowPoints[direction];
+    // Draws arrow pointer
+    // Resets to initial location after drawing
+    function drawArrowPointer(c, offsetX, offsetY, direction) {
+        const points = arrowPointerPts[direction];
         c.translate(offsetX, offsetY);
         c.begin();
         c.moveTo(points[0][0], points[0][1]);
@@ -174,8 +243,9 @@ Draw.loadPlugin(function (ui) {
         c.close();
         c.end();
         c.fillAndStroke();
+        c.translate(-offsetX, -offsetY);
     }
-
+    
     function drawRect(c, x, y, w, h) {
         c.begin();
         c.moveTo(x, y);
@@ -219,72 +289,6 @@ Draw.loadPlugin(function (ui) {
 
         return handle;
     }
-
-    const config = Object.assign(
-        // defaults
-        { addPluginMissingLabel: true },
-        // user settings
-        Editor?.globalVars?.tam
-    );
-
-    const tamConstants = {
-        UP: 'up',
-        DOWN: 'down',
-        LEFT: 'left',
-        RIGHT: 'right',
-        DIRECTION_EAST: 'east',
-        DIRECTION_WEST: 'west',
-        DIRECTION_NORTH: 'north',
-        DIRECTION_SOUTH: 'south',
-        DIRECTION_BOTH: 'both',
-        NONE: 'none',
-    };
-
-    const rotatePosition = {
-        [tamConstants.UP]: tamConstants.LEFT,
-        [tamConstants.DOWN]: tamConstants.RIGHT,
-        [tamConstants.LEFT]: tamConstants.UP,
-        [tamConstants.RIGHT]: tamConstants.DOWN
-    };
-
-    const rotateDirection = {
-        [tamConstants.DIRECTION_NORTH]: tamConstants.DIRECTION_EAST,
-        [tamConstants.DIRECTION_SOUTH]: tamConstants.DIRECTION_WEST,
-        [tamConstants.DIRECTION_EAST]: tamConstants.DIRECTION_NORTH,
-        [tamConstants.DIRECTION_WEST]: tamConstants.DIRECTION_SOUTH,
-        [tamConstants.DIRECTION_BOTH]: tamConstants.DIRECTION_BOTH,
-        [tamConstants.NONE]: tamConstants.NONE,
-        
-    };
-    
-    const flipDirection = {
-        [tamConstants.DIRECTION_NORTH]: tamConstants.DIRECTION_SOUTH,
-        [tamConstants.DIRECTION_SOUTH]: tamConstants.DIRECTION_NORTH,
-        [tamConstants.DIRECTION_EAST]: tamConstants.DIRECTION_WEST,
-        [tamConstants.DIRECTION_WEST]: tamConstants.DIRECTION_EAST,
-        [tamConstants.DIRECTION_BOTH]: tamConstants.DIRECTION_BOTH,
-        [tamConstants.NONE]: tamConstants.NONE,
-    }
-
-    const tamUtils = {
-        getStyleObject: styleString => styleString
-            .split(';')
-            .reduce(
-                (acc, cur) => (
-                    (([key, val]) => key && (acc[key] = val))(cur.split('=')),
-                    acc
-                ),
-                {}
-            ),
-        getStyleString: styleObj => Object.keys(styleObj)
-            .reduce((acc, cur) => acc + `${cur}=${styleObj[cur]};`, ''),
-        registerCodec: codecClass => {
-            const codec = new mxObjectCodec(new codecClass());
-            codec.encode = enc => enc.document.createElement(codecClass.name);
-            codec.decode = () => new codecClass();
-            mxCodecRegistry.register(codec);
-        }
-    };
 
     class StorageCodec {
         create() {
@@ -527,30 +531,30 @@ Draw.loadPlugin(function (ui) {
             switch (useSignDirection) {
                 case tamConstants.DIRECTION_BOTH:
                     if (useSignPosition === tamConstants.LEFT || useSignPosition === tamConstants.RIGHT) {
-                        rpt = [-4, -14];
-                        drawInnerArrow(c, dx, dy - 8, tamConstants.DIRECTION_NORTH);
-                        drawInnerArrow(c, 0, 16, tamConstants.DIRECTION_SOUTH);
+                        drawArrowPointer(c, dx, dy - 8, tamConstants.DIRECTION_NORTH);
+                        drawArrowPointer(c, dx, dy + 8, tamConstants.DIRECTION_SOUTH);
+                        rpt = [dx - 4, dy - 6];
                     } else {
-                        rpt = [-12, -6];
-                        drawInnerArrow(c, dx - 8, dy, tamConstants.DIRECTION_WEST);
-                        drawInnerArrow(c, 16, 0, tamConstants.DIRECTION_EAST);
+                        drawArrowPointer(c, dx - 8, dy, tamConstants.DIRECTION_WEST);
+                        drawArrowPointer(c, dx + 8, dy, tamConstants.DIRECTION_EAST);
+                        rpt = [dx - 4, dy - 6];
                     }
                     break;
                 case tamConstants.DIRECTION_NORTH:
-                    drawInnerArrow(c, dx, dy - 5, tamConstants.DIRECTION_NORTH);
-                    rpt = [-4, 5];
+                    drawArrowPointer(c, dx, dy - 5, tamConstants.DIRECTION_NORTH);
+                    rpt = [dx - 4, dy - 2];
                     break;
                 case tamConstants.DIRECTION_SOUTH:
-                    drawInnerArrow(c, dx, dy + 5, tamConstants.DIRECTION_SOUTH);
-                    rpt = [-4, -15];
+                    drawArrowPointer(c, dx, dy + 5, tamConstants.DIRECTION_SOUTH);
+                    rpt = [dx - 4, dy - 10];
                     break;
                 case tamConstants.DIRECTION_WEST:
-                    drawInnerArrow(c, dx - 5, dy, tamConstants.DIRECTION_WEST);
-                    rpt = [5, -6];
+                    drawArrowPointer(c, dx - 5, dy, tamConstants.DIRECTION_WEST);
+                    rpt = [dx, dy - 6];
                     break;
                 case tamConstants.DIRECTION_EAST:
-                    drawInnerArrow(c, dx + 5, dy, tamConstants.DIRECTION_EAST);
-                    rpt = [-15, -6];
+                    drawArrowPointer(c, dx + 5, dy, tamConstants.DIRECTION_EAST);
+                    rpt = [dx - 8, dy - 6];
                 case tamConstants.NONE:
                 default:
                     break;
@@ -562,7 +566,7 @@ Draw.loadPlugin(function (ui) {
             }
 
             // Disables shadows, dashed styles and fixes fill color for markers
-            // c.setFillColor(this.stroke);
+            c.setFillColor(this.stroke);
             c.setShadow(false);
             c.setDashed(false);
 
@@ -686,17 +690,13 @@ Draw.loadPlugin(function (ui) {
             c.end();
             c.stroke();
             
-            let useSignDirection = mxUtils.getValue(this.style, 'useSignDirection', 'east');
+            let useSignDirection = mxUtils.getValue(this.style, 'useSignDirection', tamConstants.DIRECTION_EAST);
             c.setFillColor(this.stroke);
-            let offsetY = h / 2;
-            let offsetX = 0;
-            if (useSignDirection === 'west' || useSignDirection === 'both') {
-                drawInnerArrow(c, 15 + 10, offsetY, tamConstants.DIRECTION_WEST);
-                offsetY = 0;
-                offsetX = 15 + 10;
+            if (useSignDirection === tamConstants.DIRECTION_WEST || useSignDirection === tamConstants.DIRECTION_BOTH) {
+                drawArrowPointer(c, 15 + 10, h / 2, tamConstants.DIRECTION_WEST);
             }
-            if (useSignDirection === 'east' || useSignDirection === 'both') {
-                drawInnerArrow(c, w - 15 - 10 - offsetX , offsetY, tamConstants.DIRECTION_EAST);
+            if (useSignDirection === tamConstants.DIRECTION_EAST || useSignDirection === tamConstants.DIRECTION_BOTH) {
+                drawArrowPointer(c, w - 15 - 10 , h / 2, tamConstants.DIRECTION_EAST);
             }
         }
     }
@@ -929,46 +929,45 @@ Draw.loadPlugin(function (ui) {
     ui.actions.addAction('flipUse', function () {
 
         if (!ui.editor.graph.isSelectionEmpty() && !ui.editor.graph.isEditing()) {
-
             const cells = ui.editor.graph.getSelectionCells();
             let style = tamUtils.getStyleObject(cells[0].style);
-            let isVertical = style.edgeStyle == 'elbowEdgeStyle' ? style.vertical : !style.vertical;
             if (style.shape === 'useedge') {
+                let isVertical = style.edgeStyle == 'elbowEdgeStyle' ? style.vertical : !style.vertical;
                 // south => north => both => none => south => ...
                 // east => west => both => none => east => ...
                 switch (style.useSignDirection) {
-                    case 'north':
-                        style.useSignDirection = 'both'
+                    case tamConstants.DIRECTION_NORTH:
+                        style.useSignDirection = tamConstants.DIRECTION_BOTH;
                         break;
-                    case 'south':
-                        style.useSignDirection = 'north'
+                    case tamConstants.DIRECTION_SOUTH:
+                        style.useSignDirection = tamConstants.DIRECTION_NORTH;
                         break;
-                    case 'west':
-                        style.useSignDirection = 'both'
+                    case tamConstants.DIRECTION_WEST:
+                        style.useSignDirection = tamConstants.DIRECTION_BOTH
                         break;
-                    case 'east':
-                        style.useSignDirection = 'west'
+                    case tamConstants.DIRECTION_EAST:
+                        style.useSignDirection = tamConstants.DIRECTION_WEST;
                         break;
-                    case 'both':
-                        style.useSignDirection = 'none';
+                    case tamConstants.DIRECTION_BOTH:
+                        style.useSignDirection = tamConstants.NONE;
                         break;
-                    case 'none':
+                    case tamConstants.NONE:
                     default:
-                        style.useSignDirection = isVertical ? 'east' : 'south';
+                        style.useSignDirection = isVertical ? tamConstants.DIRECTION_EAST : tamConstants.DIRECTION_SOUTH;
                         break;
                 }
             } else if (style.shape === 'queue') {
                 // east => west => both => east => ...
                 switch (style.useSignDirection) {
-                    case 'east':
-                        style.useSignDirection = 'west'
+                    case tamConstants.DIRECTION_EAST:
+                        style.useSignDirection = tamConstants.DIRECTION_WEST;
                         break;
-                    case 'west':
-                        style.useSignDirection = 'both'
+                    case tamConstants.DIRECTION_WEST:
+                        style.useSignDirection = tamConstants.DIRECTION_BOTH;
                         break;
-                    case 'both':
+                    case tamConstants.DIRECTION_BOTH:
                     default:
-                        style.useSignDirection = 'east'
+                        style.useSignDirection = tamConstants.DIRECTION_EAST;
                 }
             } else {
                 return;
