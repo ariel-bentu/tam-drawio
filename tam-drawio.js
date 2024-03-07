@@ -1,4 +1,78 @@
 Draw.loadPlugin(function (ui) {
+
+    const config = Object.assign(
+        // defaults
+        { addPluginMissingLabel: true },
+        // user settings
+        Editor?.globalVars?.tam
+    );
+
+    const tamConstants = {
+        UP: 'up',
+        DOWN: 'down',
+        LEFT: 'left',
+        RIGHT: 'right',
+        DIRECTION_EAST: 'east',
+        DIRECTION_WEST: 'west',
+        DIRECTION_NORTH: 'north',
+        DIRECTION_SOUTH: 'south',
+        DIRECTION_BOTH: 'both',
+        NONE: 'none',
+    };
+
+    const rotatePosition = {
+        [tamConstants.UP]: tamConstants.LEFT,
+        [tamConstants.DOWN]: tamConstants.RIGHT,
+        [tamConstants.LEFT]: tamConstants.UP,
+        [tamConstants.RIGHT]: tamConstants.DOWN
+    };
+
+    const rotateDirection = {
+        [tamConstants.DIRECTION_NORTH]: tamConstants.DIRECTION_EAST,
+        [tamConstants.DIRECTION_SOUTH]: tamConstants.DIRECTION_WEST,
+        [tamConstants.DIRECTION_EAST]: tamConstants.DIRECTION_NORTH,
+        [tamConstants.DIRECTION_WEST]: tamConstants.DIRECTION_SOUTH,
+        [tamConstants.DIRECTION_BOTH]: tamConstants.DIRECTION_BOTH,
+        [tamConstants.NONE]: tamConstants.NONE,
+        
+    };
+    
+    const flipDirection = {
+        [tamConstants.DIRECTION_NORTH]: tamConstants.DIRECTION_SOUTH,
+        [tamConstants.DIRECTION_SOUTH]: tamConstants.DIRECTION_NORTH,
+        [tamConstants.DIRECTION_EAST]: tamConstants.DIRECTION_WEST,
+        [tamConstants.DIRECTION_WEST]: tamConstants.DIRECTION_EAST,
+        [tamConstants.DIRECTION_BOTH]: tamConstants.DIRECTION_BOTH,
+        [tamConstants.NONE]: tamConstants.NONE,
+    }
+
+    const arrowPointerPts = {
+        [tamConstants.DIRECTION_EAST]: [[2, 0], [0, 5], [10, 0], [0, -5], [2, 0]],
+        [tamConstants.DIRECTION_WEST]: [[-2, 0], [0, 5], [-10, 0], [0, -5], [-2, 0]],
+        [tamConstants.DIRECTION_NORTH]: [[0, -2], [-5, 0], [0, -10], [5, 0], [0, -2]],
+        [tamConstants.DIRECTION_SOUTH]: [[0, 2], [-5, 0], [0, 10], [5, 0], [0, 2]]
+    };
+
+    const tamUtils = {
+        getStyleObject: styleString => styleString
+            .split(';')
+            .reduce(
+                (acc, cur) => (
+                    (([key, val]) => key && (acc[key] = val))(cur.split('=')),
+                    acc
+                ),
+                {}
+            ),
+        getStyleString: styleObj => Object.keys(styleObj)
+            .reduce((acc, cur) => acc + `${cur}=${styleObj[cur]};`, ''),
+        registerCodec: codecClass => {
+            const codec = new mxObjectCodec(new codecClass());
+            codec.encode = enc => enc.document.createElement(codecClass.name);
+            codec.decode = () => new codecClass();
+            mxCodecRegistry.register(codec);
+        }
+    };
+
     const tamShapes = [];
     const isTamPluginMissingLabel = (cell) => cell?.style?.includes("tamPluginMissing");
 
@@ -156,6 +230,22 @@ Draw.loadPlugin(function (ui) {
         c.stroke();
     }
 
+    // Draws arrow pointer
+    // Resets to initial location after drawing
+    function drawArrowPointer(c, offsetX, offsetY, direction) {
+        const points = arrowPointerPts[direction];
+        c.translate(offsetX, offsetY);
+        c.begin();
+        c.moveTo(points[0][0], points[0][1]);
+        for (let i = 1; i < points.length; i++) {
+            c.lineTo(points[i][0], points[i][1]);
+        }
+        c.close();
+        c.end();
+        c.fillAndStroke();
+        c.translate(-offsetX, -offsetY);
+    }
+    
     function drawRect(c, x, y, w, h) {
         c.begin();
         c.moveTo(x, y);
@@ -199,72 +289,6 @@ Draw.loadPlugin(function (ui) {
 
         return handle;
     }
-
-    const config = Object.assign(
-        // defaults
-        { addPluginMissingLabel: true },
-        // user settings
-        Editor?.globalVars?.tam
-    );
-
-    const tamConstants = {
-        UP: 'up',
-        DOWN: 'down',
-        LEFT: 'left',
-        RIGHT: 'right',
-        DIRECTION_EAST: 'east',
-        DIRECTION_WEST: 'west',
-        DIRECTION_NORTH: 'north',
-        DIRECTION_SOUTH: 'south',
-        DIRECTION_BOTH: 'both',
-        NONE: 'none',
-    };
-
-    const rotatePosition = {
-        [tamConstants.UP]: tamConstants.LEFT,
-        [tamConstants.DOWN]: tamConstants.RIGHT,
-        [tamConstants.LEFT]: tamConstants.UP,
-        [tamConstants.RIGHT]: tamConstants.DOWN
-    };
-
-    const rotateDirection = {
-        [tamConstants.DIRECTION_NORTH]: tamConstants.DIRECTION_EAST,
-        [tamConstants.DIRECTION_SOUTH]: tamConstants.DIRECTION_WEST,
-        [tamConstants.DIRECTION_EAST]: tamConstants.DIRECTION_NORTH,
-        [tamConstants.DIRECTION_WEST]: tamConstants.DIRECTION_SOUTH,
-        [tamConstants.DIRECTION_BOTH]: tamConstants.DIRECTION_BOTH,
-        [tamConstants.NONE]: tamConstants.NONE,
-        
-    };
-    
-    const flipDirection = {
-        [tamConstants.DIRECTION_NORTH]: tamConstants.DIRECTION_SOUTH,
-        [tamConstants.DIRECTION_SOUTH]: tamConstants.DIRECTION_NORTH,
-        [tamConstants.DIRECTION_EAST]: tamConstants.DIRECTION_WEST,
-        [tamConstants.DIRECTION_WEST]: tamConstants.DIRECTION_EAST,
-        [tamConstants.DIRECTION_BOTH]: tamConstants.DIRECTION_BOTH,
-        [tamConstants.NONE]: tamConstants.NONE,
-    }
-
-    const tamUtils = {
-        getStyleObject: styleString => styleString
-            .split(';')
-            .reduce(
-                (acc, cur) => (
-                    (([key, val]) => key && (acc[key] = val))(cur.split('=')),
-                    acc
-                ),
-                {}
-            ),
-        getStyleString: styleObj => Object.keys(styleObj)
-            .reduce((acc, cur) => acc + `${cur}=${styleObj[cur]};`, ''),
-        registerCodec: codecClass => {
-            const codec = new mxObjectCodec(new codecClass());
-            codec.encode = enc => enc.document.createElement(codecClass.name);
-            codec.decode = () => new codecClass();
-            mxCodecRegistry.register(codec);
-        }
-    };
 
     class StorageCodec {
         create() {
@@ -501,93 +525,44 @@ Draw.loadPlugin(function (ui) {
                     dy = -distance;
                     dx = 0;
             }
-            let shapes = [];
+            c.translate(x, y);
+            c.setFillColor(this.stroke);
+            let rpt;
             switch (useSignDirection) {
                 case tamConstants.DIRECTION_BOTH:
                     if (useSignPosition === tamConstants.LEFT || useSignPosition === tamConstants.RIGHT) {
-                        shapes.push({
-                            dx: dx,
-                            dy: dy - 8,
-                            tpts: [[-5, 0], [0, -10], [5, 0], [0, -2],],
-                            rpt: [-5, 2]
-                        });
-                        shapes.push({
-                            dx: 0,
-                            dy: 16,
-                            tpts: [[-5, 0], [0, 10], [5, 0], [0, 2],
-                        ]
-                        });
+                        drawArrowPointer(c, dx, dy - 8, tamConstants.DIRECTION_NORTH);
+                        drawArrowPointer(c, dx, dy + 8, tamConstants.DIRECTION_SOUTH);
+                        rpt = [dx - 4, dy - 6];
                     } else {
-                        shapes.push({
-                            dx: dx - 8,
-                            dy: dy,
-                            tpts: [ [0, -5], [-10, 0], [0, 5], [-2, 0],],
-                            rpt: [4, -5]
-                        });
-                        shapes.push({
-                            dx: 16,
-                            dy: 0,
-                            tpts: [[0, -5], [10, 0], [0, 5], [2, 0],]
-                        });                        
+                        drawArrowPointer(c, dx - 8, dy, tamConstants.DIRECTION_WEST);
+                        drawArrowPointer(c, dx + 8, dy, tamConstants.DIRECTION_EAST);
+                        rpt = [dx - 4, dy - 6];
                     }
                     break;
                 case tamConstants.DIRECTION_NORTH:
-                    shapes.push({
-                        dx: dx,
-                        dy: dy - 5,
-                        tpts: [[-5, 0], [0, -10], [5, 0], [0, -2]],
-                        rpt: [-5, 5]
-                    });
+                    drawArrowPointer(c, dx, dy - 5, tamConstants.DIRECTION_NORTH);
+                    rpt = [dx - 4, dy - 2];
                     break;
                 case tamConstants.DIRECTION_SOUTH:
-                    shapes.push({
-                        dx: dx,
-                        dy: dy + 5,
-                        tpts: [[-5, 0], [0, 10], [5, 0], [0, 2]],
-                        rpt: [-5, -15]
-                    });
+                    drawArrowPointer(c, dx, dy + 5, tamConstants.DIRECTION_SOUTH);
+                    rpt = [dx - 4, dy - 10];
                     break;
                 case tamConstants.DIRECTION_WEST:
-                    shapes.push({
-                        dx: dx - 5,
-                        dy: dy,
-                        tpts: [[0, -5], [-10, 0], [0, 5], [-2, 0]],
-                        rpt: [5, -5]
-                    });
+                    drawArrowPointer(c, dx - 5, dy, tamConstants.DIRECTION_WEST);
+                    rpt = [dx, dy - 6];
                     break;
                 case tamConstants.DIRECTION_EAST:
-                    shapes.push({
-                        dx: dx + 5,
-                        dy: dy,
-                        tpts: [[0, -5], [10, 0], [0, 5], [2, 0]],
-                        rpt: [-15, -5]
-                    });
+                    drawArrowPointer(c, dx + 5, dy, tamConstants.DIRECTION_EAST);
+                    rpt = [dx - 8, dy - 6];
                 case tamConstants.NONE:
                 default:
                     break;
             }
-            if (shapes.length > 0) {
-                c.translate(x, y);
-            }
-            let shape;
-            for (shape of shapes) {
-                c.translate(shape.dx, shape.dy);
-                c.begin();
-                c.moveTo(shape.tpts[0][0], shape.tpts[0][1]);
-                for (let i = 1; i < shape.tpts.length; i++) {
-                    c.lineTo(shape.tpts[i][0], shape.tpts[i][1]);
-                }
-                c.lineTo(shape.tpts[0][0], shape.tpts[0][1]);
-                c.close();
-                c.end();
-                c.setFillColor(this.stroke);
-                c.fillAndStroke();
-
-                //Output the R
-                if (shape.rpt) {
-                    c.setFontColor(this.stroke);
-                    c.text(shape.rpt[0], shape.rpt[1], 10, 10, "R");
-                }
+            //Output the R
+            if (rpt) {
+                c.setFontColor(this.stroke);
+                c.text(rpt[0], rpt[1], 10, 10, "R");
             }
 
             // Disables shadows, dashed styles and fixes fill color for markers
@@ -704,28 +679,25 @@ Draw.loadPlugin(function (ui) {
             
             c.begin();
             c.setStrokeWidth(2);
-            c.roundrect(0, 0, w, h, h/2, h/2);
+            c.roundrect(0, 0, w, h, h / 2, h / 2);
             c.end();
             c.fillAndStroke();
 
             c.begin();
             c.setStrokeWidth(1);
-            c.moveTo(15, h/2);
-            c.lineTo(w - 15, h/2);
+            c.moveTo(15, h / 2);
+            c.lineTo(w - 15, h / 2);
             c.end();
             c.stroke();
             
+            let useSignDirection = mxUtils.getValue(this.style, 'useSignDirection', tamConstants.DIRECTION_EAST);
             c.setFillColor(this.stroke);
-            c.translate(w - 15 - 10, h/2);
-            c.begin();
-            c.moveTo(2, 0);
-            c.lineTo(0, 5);
-            c.lineTo(10, 0);
-            c.lineTo(0, -5);
-            c.lineTo(2, 0);
-            c.close();
-            c.end();
-            c.fillAndStroke();
+            if (useSignDirection === tamConstants.DIRECTION_WEST || useSignDirection === tamConstants.DIRECTION_BOTH) {
+                drawArrowPointer(c, 15 + 10, h / 2, tamConstants.DIRECTION_WEST);
+            }
+            if (useSignDirection === tamConstants.DIRECTION_EAST || useSignDirection === tamConstants.DIRECTION_BOTH) {
+                drawArrowPointer(c, w - 15 - 10 , h / 2, tamConstants.DIRECTION_EAST);
+            }
         }
     }
 
@@ -853,7 +825,7 @@ Draw.loadPlugin(function (ui) {
         content.appendChild(ui.sidebar.createEdgeTemplate(arrowPrefix + 'elbow=horizontal;endArrow=classic;endFill=1;align=left;', 80, 80, '', 'Horizontal Uni-Directional S-Access'));
         content.appendChild(ui.sidebar.createEdgeTemplate(arrowPrefix + 'elbow=horizontal;endArrow=none;endFill=0;align=left;', 80, 80, '', 'Vertical Bi-Directional S-Access'));
         content.appendChild(ui.sidebar.createEdgeTemplate(arrowPrefix + 'elbow=vertical;endArrow=none;endFill=0;align=center;', 80, 80, '', 'Horizontal Bi-Directional S-Access'));
-        content.appendChild(ui.sidebar.createVertexTemplate('shape=queue;strokeWidth=2;verticalLabelPosition=bottom', 70, 30, '', 'Queue'));
+        content.appendChild(ui.sidebar.createVertexTemplate('shape=queue;strokeWidth=2;verticalLabelPosition=bottom;useSignDirection=east;', 70, 30, '', 'Queue'));
     });
 
     ui.sidebar.addPalette('tamAnnotate', 'TAM / Annotate', true, function (content) {
@@ -957,36 +929,50 @@ Draw.loadPlugin(function (ui) {
     ui.actions.addAction('flipUse', function () {
 
         if (!ui.editor.graph.isSelectionEmpty() && !ui.editor.graph.isEditing()) {
-
             const cells = ui.editor.graph.getSelectionCells();
             let style = tamUtils.getStyleObject(cells[0].style);
-            let isVertical = style.edgeStyle == 'elbowEdgeStyle' ? style.vertical : !style.vertical;
-            if (style.shape !== 'useedge') {
+            if (style.shape === 'useedge') {
+                let isVertical = style.edgeStyle == 'elbowEdgeStyle' ? style.vertical : !style.vertical;
+                // south => north => both => none => south => ...
+                // east => west => both => none => east => ...
+                switch (style.useSignDirection) {
+                    case tamConstants.DIRECTION_NORTH:
+                        style.useSignDirection = tamConstants.DIRECTION_BOTH;
+                        break;
+                    case tamConstants.DIRECTION_SOUTH:
+                        style.useSignDirection = tamConstants.DIRECTION_NORTH;
+                        break;
+                    case tamConstants.DIRECTION_WEST:
+                        style.useSignDirection = tamConstants.DIRECTION_BOTH
+                        break;
+                    case tamConstants.DIRECTION_EAST:
+                        style.useSignDirection = tamConstants.DIRECTION_WEST;
+                        break;
+                    case tamConstants.DIRECTION_BOTH:
+                        style.useSignDirection = tamConstants.NONE;
+                        break;
+                    case tamConstants.NONE:
+                    default:
+                        style.useSignDirection = isVertical ? tamConstants.DIRECTION_EAST : tamConstants.DIRECTION_SOUTH;
+                        break;
+                }
+            } else if (style.shape === 'queue') {
+                // east => west => both => east => ...
+                switch (style.useSignDirection) {
+                    case tamConstants.DIRECTION_EAST:
+                        style.useSignDirection = tamConstants.DIRECTION_WEST;
+                        break;
+                    case tamConstants.DIRECTION_WEST:
+                        style.useSignDirection = tamConstants.DIRECTION_BOTH;
+                        break;
+                    case tamConstants.DIRECTION_BOTH:
+                    default:
+                        style.useSignDirection = tamConstants.DIRECTION_EAST;
+                }
+            } else {
                 return;
             }
 
-            // south => north => none => south => ...
-            // east => west => none => east => ...
-            switch (style.useSignDirection) {
-                case 'north':
-                    style.useSignDirection = 'both'
-                    break;
-                case 'south':
-                    style.useSignDirection = 'north'
-                    break;
-                case 'west':
-                    style.useSignDirection = 'both'
-                    break;
-                case 'east':
-                    style.useSignDirection = 'west'
-                    break;
-                case 'both':
-                    style.useSignDirection = 'none';
-                    break;
-                case 'none':
-                    style.useSignDirection = isVertical ? 'east' : 'south';
-                    break;
-            }
 
             cells[0].setStyle(mxUtils.setStyle(cells[0].style, 'useSignDirection', style.useSignDirection));
             ui.editor.graph.refresh(cells[0]);
