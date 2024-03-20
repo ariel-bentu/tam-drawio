@@ -62,6 +62,17 @@ This plugin adds some components to draw.io, which cover the common components u
 - The Sidepanel does not show the TAM elements in Dark mode.
 - Select Light mode and restart.
 
+#### Note for Draw.io 24 release and after!!!
+- Plugin often is not loaded 
+- Workaround:
+  - open drawio
+  - select menu: `Help->Open Developer Tools`
+  - goto the console tab
+  - type `mxSettings.settings.plugins` - see all plugins
+  - if tam-drawio.js is with full-path: modify it to be only file-name and then execute in the console `mxSettings.save()`
+    - for example, in my case it was the third entry so modify like this: `mxSettings.settings.plugins[2] = 'tam-drawio.js'`
+
+
 ### Install in VSCode
 - Assuming you have Drawio vs-code extension. If not: [Get It](https://marketplace.visualstudio.com/items?itemName=hediet.vscode-drawio)
 - Open the Settings
