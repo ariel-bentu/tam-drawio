@@ -67,10 +67,11 @@ This plugin adds some components to draw.io, which cover the common components u
 - Workaround:
   - open drawio
   - select menu: `Help->Open Developer Tools`
-  - goto the console tab
-  - type `mxSettings.settings.plugins` - see all plugins
-  - if tam-drawio.js is with full-path: modify it to be only file-name and then execute in the console `mxSettings.save()`
-    - for example, in my case it was the third entry so modify like this: `mxSettings.settings.plugins[2] = 'tam-drawio.js'`
+  - go "Application" tab
+  - under `Local storage->file://`
+  - look for a key `.drawio-config`
+  - edit the value, changing the `plugins` array. Change the `tam-drawio.js` from having a full path to only file name (`tam-drawio.js`).
+  - restart Drawio
 
 
 ### Install in VSCode
