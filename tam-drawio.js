@@ -34,9 +34,9 @@ Draw.loadPlugin(function (ui) {
         [tamConstants.DIRECTION_WEST]: tamConstants.DIRECTION_SOUTH,
         [tamConstants.DIRECTION_BOTH]: tamConstants.DIRECTION_BOTH,
         [tamConstants.NONE]: tamConstants.NONE,
-        
+
     };
-    
+
     const flipDirection = {
         [tamConstants.DIRECTION_NORTH]: tamConstants.DIRECTION_SOUTH,
         [tamConstants.DIRECTION_SOUTH]: tamConstants.DIRECTION_NORTH,
@@ -129,7 +129,7 @@ Draw.loadPlugin(function (ui) {
             if (pageElems) {
                 let missingLabel = undefined;
                 let isTAMPluginNeeded = false;
-                for (let i=0;i<pageElems.length;i++) {
+                for (let i = 0; i < pageElems.length; i++) {
                     const shape = parseShape(pageElems[i]);
                     if (shape) {
                         if (!missingLabel && shape === "tamPluginMissing") {
@@ -138,7 +138,7 @@ Draw.loadPlugin(function (ui) {
                             // no need to search any more - we know it needs the plugin
                             break;
                         }
-                        if (tamShapes.find(ts=>ts === shape)) {
+                        if (tamShapes.find(ts => ts === shape)) {
                             isTAMPluginNeeded = true;
                         }
                     }
@@ -152,7 +152,7 @@ Draw.loadPlugin(function (ui) {
                 let minX = 0, minY = 0;
                 pageElems.forEach((child, i) => {
                     if (child.geometry && child !== missingLabel) {
-                        const isEdge =  child.edge && child.geometry.sourcePoint && child.geometry.targetPoint
+                        const isEdge = child.edge && child.geometry.sourcePoint && child.geometry.targetPoint
                         const x = isEdge ? Math.min(child.geometry.sourcePoint.x, child.geometry.targetPoint.x) : child.geometry.x;
                         const y = isEdge ? Math.min(child.geometry.sourcePoint.y, child.geometry.targetPoint.y) : child.geometry.y;
                         const endX = isEdge ? Math.max(child.geometry.sourcePoint.x, child.geometry.targetPoint.x) : x + child.geometry.width;
@@ -245,7 +245,7 @@ Draw.loadPlugin(function (ui) {
         c.fillAndStroke();
         c.translate(-offsetX, -offsetY);
     }
-    
+
     function drawRect(c, x, y, w, h) {
         c.begin();
         c.moveTo(x, y);
@@ -579,7 +579,7 @@ Draw.loadPlugin(function (ui) {
 
         paintVertexShape(c, x, y, w, h) {
             const isVertical = mxUtils.getValue(this.style, 'vertical', false);
-            const radius = isVertical ? 1/3 * w : 1/3 * h;
+            const radius = isVertical ? 1 / 3 * w : 1 / 3 * h;
             const x1 = x + radius;
             const y1 = y + radius;
             const dx = isVertical ? 0 : radius * 3.6;
@@ -676,7 +676,7 @@ Draw.loadPlugin(function (ui) {
     class QueueShape extends mxRectangleShape {
         paintVertexShape(c, x, y, w, h) {
             c.translate(x, y);
-            
+
             c.begin();
             c.setStrokeWidth(2);
             c.roundrect(0, 0, w, h, h / 2, h / 2);
@@ -689,14 +689,14 @@ Draw.loadPlugin(function (ui) {
             c.lineTo(w - 15, h / 2);
             c.end();
             c.stroke();
-            
+
             let useSignDirection = mxUtils.getValue(this.style, 'useSignDirection', tamConstants.DIRECTION_EAST);
             c.setFillColor(this.stroke);
             if (useSignDirection === tamConstants.DIRECTION_WEST || useSignDirection === tamConstants.DIRECTION_BOTH) {
                 drawArrowPointer(c, 15 + 10, h / 2, tamConstants.DIRECTION_WEST);
             }
             if (useSignDirection === tamConstants.DIRECTION_EAST || useSignDirection === tamConstants.DIRECTION_BOTH) {
-                drawArrowPointer(c, w - 15 - 10 , h / 2, tamConstants.DIRECTION_EAST);
+                drawArrowPointer(c, w - 15 - 10, h / 2, tamConstants.DIRECTION_EAST);
             }
         }
     }
@@ -998,13 +998,17 @@ Draw.loadPlugin(function (ui) {
     elt.firstChild.style.backgroundPosition = 'center';
     elt.firstChild.style.backgroundSize = 'contain';
     elt.firstChild.style.backgroundRepeat = 'no-repeat';
+    elt.firstChild.style.width = '20px';
+    elt.firstChild.style.height = '20px';
 
     const elt2 = ui.toolbar.addItem('', 'toggleMultiplicity');
     elt2.firstChild.style.backgroundImage = 'url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHhtbG5zOnhsaW5rPSdodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rJyB2ZXJzaW9uPScxLjEnIHdpZHRoPSc4MnB4JyBoZWlnaHQ9JzgycHgnIHZpZXdCb3g9Jy0wLjUgLTAuNSAxMjAgOTYnPjxkZWZzLz48Zz48cGF0aCBkPSdNIDEgMzQgTCAxMDEgMzQgTCAxMDEgOTQgTCAxIDk0IEwgMSAzNCBaJyBmaWxsPSdub25lJyBzdHJva2U9JyMwMDAwMDAnIHN0cm9rZS13aWR0aD0nMicgc3Ryb2tlLW1pdGVybGltaXQ9JzEwJyBwb2ludGVyLWV2ZW50cz0nYWxsJy8+PHBhdGggZD0nTSA5IDM0IEwgOSAyNiBMIDEwOSAyNiBMIDEwOSA4NiBMIDEwMSA4NicgZmlsbD0nbm9uZScgc3Ryb2tlPScjMDAwMDAwJyBzdHJva2Utd2lkdGg9JzInIHN0cm9rZS1taXRlcmxpbWl0PScxMCcgcG9pbnRlci1ldmVudHM9J2FsbCcvPjxwYXRoIGQ9J00gMjMuMSA5IEwgODIuOSA5JyBmaWxsPSdub25lJyBzdHJva2U9JyMwMDAwMDAnIHN0cm9rZS13aWR0aD0nMycgc3Ryb2tlLW1pdGVybGltaXQ9JzEwJyBwb2ludGVyLWV2ZW50cz0nc3Ryb2tlJy8+PHBhdGggZD0nTSAxNi4zNSA5IEwgMjUuMzUgNC41IEwgMjMuMSA5IEwgMjUuMzUgMTMuNSBaJyBmaWxsPScjMDAwMDAwJyBzdHJva2U9JyMwMDAwMDAnIHN0cm9rZS13aWR0aD0nMycgc3Ryb2tlLW1pdGVybGltaXQ9JzEwJyBwb2ludGVyLWV2ZW50cz0nYWxsJy8+PHBhdGggZD0nTSA4OS42NSA5IEwgODAuNjUgMTMuNSBMIDgyLjkgOSBMIDgwLjY1IDQuNSBaJyBmaWxsPScjMDAwMDAwJyBzdHJva2U9JyMwMDAwMDAnIHN0cm9rZS13aWR0aD0nMycgc3Ryb2tlLW1pdGVybGltaXQ9JzEwJyBwb2ludGVyLWV2ZW50cz0nYWxsJy8+PC9nPjwvc3ZnPg==")';
     elt2.firstChild.style.backgroundPosition = 'center';
     elt2.firstChild.style.backgroundSize = 'contain';
     elt2.firstChild.style.backgroundRepeat = 'no-repeat';
-
+    elt2.firstChild.style.width = '20px';
+    elt2.firstChild.style.height = '20px';
+    
     if (typeof mxVertexHandler !== 'undefined' && Graph.handleFactory && typeof Graph.handleFactory === "object") {
         const singleDxDyPoint = (state) => {
             return [
