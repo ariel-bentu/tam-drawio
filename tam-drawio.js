@@ -473,7 +473,11 @@ Draw.loadPlugin(function (ui) {
                 circleRadius * 2,
                 circleRadius * 2
             );
-            c.stroke();
+            // Adapt circle fill color to theme: white for light mode, black for dark mode
+            const isDarkMode = typeof Editor !== 'undefined' && Editor.darkMode;
+            c.setFillColor(isDarkMode ? '#000000' : '#FFFFFF');
+            c.fillAndStroke()
+
             c.setStrokeWidth(strokeWidth);
             cpt = vertLine ?
                 new mxPoint(x, y - lineDirectionCoefficient * circleRadius) :
@@ -908,6 +912,12 @@ Draw.loadPlugin(function (ui) {
 
     ui.sidebar.setCurrentSearchEntryLibrary();
 
+    // Listen for theme changes and refresh the graph to update circle colors
+    if (typeof ui.addListener === 'function') {
+        ui.addListener('darkModeChanged', function() {
+            ui.editor.graph.refresh();
+        });
+    }
 
     mxResources.parse('flipUse=Flip Use Direction');
 
