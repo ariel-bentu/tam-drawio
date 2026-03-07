@@ -6,7 +6,7 @@ Draw.loadPlugin(function (ui) {
         // user settings
         Editor?.globalVars?.tam
     );
-
+    
     const tamConstants = {
         UP: 'up',
         DOWN: 'down',
@@ -424,7 +424,11 @@ Draw.loadPlugin(function (ui) {
                 rectMsg = "[" + left + "," + top + "]"
                 for (let i = 0; i < pts.length - 1; i++) {
 
-                    if (pts[i].x === pts[i + 1].x || isVertical && pts.length === 2) {
+                    // Use tolerance for vertical/horizontal checks to handle floating point imprecision
+                    const isVerticalSegment = Math.abs(pts[i].x - pts[i + 1].x) < 1;
+                    const isHorizontalSegment = Math.abs(pts[i].y - pts[i + 1].y) < 1;
+
+                    if (isVerticalSegment || isVertical && pts.length === 2) {
                         if (inBetween(top + cy, pts[i].y, pts[i + 1].y)) {
                             y = top + cy;
                             x = pts[i].x;
@@ -437,7 +441,7 @@ Draw.loadPlugin(function (ui) {
                                 break;
                             }
                         }
-                    } else {
+                    } else if (isHorizontalSegment) {
                         if (inBetween(left + cx, pts[i].x, pts[i + 1].x)) {
                             y = pts[i].y;
                             x = left + cx;
@@ -457,11 +461,35 @@ Draw.loadPlugin(function (ui) {
             const lineDirectionCoefficient = vertLine ?
                 (pts[p0].y > pts[p1].y ? 1 : -1) :
                 (pts[p0].x < pts[p1].x ? 1 : -1);
+
+            // Check if circle is at or very close to a bend point
+            const atBendP0 = p0 > 0 && Math.abs(x - pts[p0].x) < circleRadius && Math.abs(y - pts[p0].y) < circleRadius;
+            const atBendP1 = p1 < pts.length - 1 && Math.abs(x - pts[p1].x) < circleRadius && Math.abs(y - pts[p1].y) < circleRadius;
+
+            // Calculate cutoff point for the current segment
             let cpt = vertLine ?
                 new mxPoint(x, y + lineDirectionCoefficient * circleRadius) :
                 new mxPoint(x - lineDirectionCoefficient * circleRadius, y);
+
             //ui.editor.setStatus(rectMsg + "--" + JSON.stringify(pts) + "--" + cpt.x + "," + cpt.y)
-            let pts1 = [...pts.slice(0, p0 + 1), cpt]
+
+            let pts1;
+            if (atBendP0) {
+                // At the start bend - need to add cutoff point for the previous segment direction
+                const prevSegmentVertical = Math.abs(pts[p0 - 1].x - pts[p0].x) < 1;
+                const prevDirCoeff = prevSegmentVertical ?
+                    (pts[p0 - 1].y > pts[p0].y ? 1 : -1) :
+                    (pts[p0 - 1].x < pts[p0].x ? 1 : -1);
+                const prevCpt = prevSegmentVertical ?
+                    new mxPoint(x, y + prevDirCoeff * circleRadius) :
+                    new mxPoint(x - prevDirCoeff * circleRadius, y);
+                pts1 = [...pts.slice(0, p0), prevCpt];
+            } else if (atBendP1) {
+                // At the end bend - the current segment goes TO the bend, so use its cutoff
+                pts1 = [...pts.slice(0, p0 + 1), cpt];
+            } else {
+                pts1 = [...pts.slice(0, p0 + 1), cpt];
+            }
             const strokeWidth = c.state.strokeWidth;
             c.setStrokeWidth(strokeWidth);
             drawEdge(pts1);
@@ -481,13 +509,26 @@ Draw.loadPlugin(function (ui) {
             c.setStrokeWidth(strokeWidth);
             cpt = vertLine ?
                 new mxPoint(x, y - lineDirectionCoefficient * circleRadius) :
-                new mxPoint(x + lineDirectionCoefficient * circleRadius, y)
+                new mxPoint(x + lineDirectionCoefficient * circleRadius, y);
+
             let endPoint =
                 (pts.length === 2) ?
                     (vertLine ? new mxPoint(pts[0].x, pts[1].y) : new mxPoint(pts[1].x, pts[0].y)) :
                     pts[pts.length - 1];
 
-            pts1 = [cpt, ...pts.slice(p1, pts.length - 1), endPoint];
+            if (atBendP1) {
+                // At the end bend - need to add cutoff point for the next segment direction
+                const nextSegmentVertical = Math.abs(pts[p1].x - pts[p1 + 1].x) < 1;
+                const nextDirCoeff = nextSegmentVertical ?
+                    (pts[p1].y < pts[p1 + 1].y ? -1 : 1) :
+                    (pts[p1].x < pts[p1 + 1].x ? -1 : 1);
+                const nextCpt = nextSegmentVertical ?
+                    new mxPoint(x, y - nextDirCoeff * circleRadius) :
+                    new mxPoint(x + nextDirCoeff * circleRadius, y);
+                pts1 = [nextCpt, ...pts.slice(p1 + 1, pts.length - 1), endPoint];
+            } else {
+                pts1 = [cpt, ...pts.slice(p1, pts.length - 1), endPoint];
+            }
             drawEdge(pts1);
 
             c.pointerEventsValue = prev;
@@ -1003,28 +1044,67 @@ Draw.loadPlugin(function (ui) {
         }
     });
 
-    ui.toolbar.addSeparator();
-    const elt = ui.addButton('', mxResources.get('flipUse') || 'Flip Use Direction', function() {
-        ui.actions.get('flipUse').funct();
-    }, ui.toolbar.container);
-    elt.style.backgroundImage = 'url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHhtbG5zOnhsaW5rPSdodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rJyB2ZXJzaW9uPScxLjEnIHdpZHRoPSc4MnB4JyBoZWlnaHQ9JzgycHgnIHZpZXdCb3g9Jy0wLjUgLTAuNSA4MiAyJz48Zz48cGF0aCBkPSdNIDAgMTAgTCAyMiAxMCcgZmlsbD0nbm9uZScgc3Ryb2tlPScjMDAwMDAwJyBzdHJva2UtbWl0ZXJsaW1pdD0nMTAnIHBvaW50ZXItZXZlbnRzPSdzdHJva2UnIHN0cm9rZS13aWR0aD0nNCcvPjxlbGxpcHNlIGN4PSc0MCcgY3k9JzEwJyByeD0nMTgnIHJ5PScxOCcgZmlsbD0nbm9uZScgc3Ryb2tlPScjMDAwMDAwJyBwb2ludGVyLWV2ZW50cz0nc3Ryb2tlJyBzdHJva2Utd2lkdGg9JzgnLz48cGF0aCBkPSdNIDU4IDEwIEwgODAgMTAnIGZpbGw9J25vbmUnIHN0cm9rZT0nIzAwMDAwMCcgc3Ryb2tlLW1pdGVybGltaXQ9JzEwJyBwb2ludGVyLWV2ZW50cz0nc3Ryb2tlJyBzdHJva2Utd2lkdGg9JzQnLz48cGF0aCBkPSdNIDQ1IC0zMCBMIDU1IC0yNSBMIDQ1IC0yMCBMIDQ3IC0yNSBMIDQ1IC0zMCBaJyBmaWxsPScjMDAwMDAwJyBzdHJva2U9JyMwMDAwMDAnIHN0cm9rZS1taXRlcmxpbWl0PScxMCcgcG9pbnRlci1ldmVudHM9J2FsbCcvPjxnIGZpbGw9JyMwMDAwMDAnIGZvbnQtZmFtaWx5PSdBcmlhbCxIZWx2ZXRpY2EnIGZvbnQtc2l6ZT0nMjJweCcgZm9udC13ZWlnaHQ9JzgwMCc+PHRleHQgeD0nMjQuNScgeT0nLTE5LjUnPlI8L3RleHQ+PC9nPjwvZz48L3N2Zz4=")';
-    elt.style.backgroundPosition = 'center';
-    elt.style.backgroundSize = 'contain';
-    elt.style.backgroundRepeat = 'no-repeat';
-    elt.style.width = '24px';
-    elt.style.height = '24px';
+    // Add toolbar buttons (works in both web and VSCode)
+    if (ui.toolbar) {
+        ui.toolbar.addSeparator();
 
-    const elt2 = ui.addButton('', 'Toggle Multiplicity', function() {
-        ui.actions.get('toggleMultiplicity').funct();
-    }, ui.toolbar.container);
-    elt2.style.backgroundImage = 'url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHhtbG5zOnhsaW5rPSdodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rJyB2ZXJzaW9uPScxLjEnIHdpZHRoPSc4MnB4JyBoZWlnaHQ9JzgycHgnIHZpZXdCb3g9Jy0wLjUgLTAuNSAxMjAgOTYnPjxkZWZzLz48Zz48cGF0aCBkPSdNIDEgMzQgTCAxMDEgMzQgTCAxMDEgOTQgTCAxIDk0IEwgMSAzNCBaJyBmaWxsPSdub25lJyBzdHJva2U9JyMwMDAwMDAnIHN0cm9rZS13aWR0aD0nMicgc3Ryb2tlLW1pdGVybGltaXQ9JzEwJyBwb2ludGVyLWV2ZW50cz0nYWxsJy8+PHBhdGggZD0nTSA5IDM0IEwgOSAyNiBMIDEwOSAyNiBMIDEwOSA4NiBMIDEwMSA4NicgZmlsbD0nbm9uZScgc3Ryb2tlPScjMDAwMDAwJyBzdHJva2Utd2lkdGg9JzInIHN0cm9rZS1taXRlcmxpbWl0PScxMCcgcG9pbnRlci1ldmVudHM9J2FsbCcvPjxwYXRoIGQ9J00gMjMuMSA5IEwgODIuOSA5JyBmaWxsPSdub25lJyBzdHJva2U9JyMwMDAwMDAnIHN0cm9rZS13aWR0aD0nMycgc3Ryb2tlLW1pdGVybGltaXQ9JzEwJyBwb2ludGVyLWV2ZW50cz0nc3Ryb2tlJy8+PHBhdGggZD0nTSAxNi4zNSA5IEwgMjUuMzUgNC41IEwgMjMuMSA5IEwgMjUuMzUgMTMuNSBaJyBmaWxsPScjMDAwMDAwJyBzdHJva2U9JyMwMDAwMDAnIHN0cm9rZS13aWR0aD0nMycgc3Ryb2tlLW1pdGVybGltaXQ9JzEwJyBwb2ludGVyLWV2ZW50cz0nYWxsJy8+PHBhdGggZD0nTSA4OS42NSA5IEwgODAuNjUgMTMuNSBMIDgyLjkgOSBMIDgwLjY1IDQuNSBaJyBmaWxsPScjMDAwMDAwJyBzdHJva2U9JyMwMDAwMDAnIHN0cm9rZS13aWR0aD0nMycgc3Ryb2tlLW1pdGVybGltaXQ9JzEwJyBwb2ludGVyLWV2ZW50cz0nYWxsJy8+PC9nPjwvc3ZnPg==")';
-    elt2.style.backgroundPosition = 'center';
-    elt2.style.backgroundSize = 'contain';
-    elt2.style.backgroundRepeat = 'no-repeat';
-    elt2.style.width = '24px';
-    elt2.style.height = '24px';
-    
-    if (typeof mxVertexHandler !== 'undefined' && Graph.handleFactory && typeof Graph.handleFactory === "object") {
+        // Different APIs between web and VSCode
+        if (typeof ui.addButton === 'function') {
+            // Web version: ui.addButton(label, tooltip, fn, container)
+            const elt = ui.addButton('', mxResources.get('flipUse') || 'Flip Use Direction', function() {
+                ui.actions.get('flipUse').funct();
+            }, ui.toolbar.container);
+            elt.style.backgroundImage = 'url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHhtbG5zOnhsaW5rPSdodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rJyB2ZXJzaW9uPScxLjEnIHdpZHRoPSc4MnB4JyBoZWlnaHQ9JzgycHgnIHZpZXdCb3g9Jy0wLjUgLTAuNSA4MiAyJz48Zz48cGF0aCBkPSdNIDAgMTAgTCAyMiAxMCcgZmlsbD0nbm9uZScgc3Ryb2tlPScjMDAwMDAwJyBzdHJva2UtbWl0ZXJsaW1pdD0nMTAnIHBvaW50ZXItZXZlbnRzPSdzdHJva2UnIHN0cm9rZS13aWR0aD0nNCcvPjxlbGxpcHNlIGN4PSc0MCcgY3k9JzEwJyByeD0nMTgnIHJ5PScxOCcgZmlsbD0nbm9uZScgc3Ryb2tlPScjMDAwMDAwJyBwb2ludGVyLWV2ZW50cz0nc3Ryb2tlJyBzdHJva2Utd2lkdGg9JzgnLz48cGF0aCBkPSdNIDU4IDEwIEwgODAgMTAnIGZpbGw9J25vbmUnIHN0cm9rZT0nIzAwMDAwMCcgc3Ryb2tlLW1pdGVybGltaXQ9JzEwJyBwb2ludGVyLWV2ZW50cz0nc3Ryb2tlJyBzdHJva2Utd2lkdGg9JzQnLz48cGF0aCBkPSdNIDQ1IC0zMCBMIDU1IC0yNSBMIDQ1IC0yMCBMIDQ3IC0yNSBMIDQ1IC0zMCBaJyBmaWxsPScjMDAwMDAwJyBzdHJva2U9JyMwMDAwMDAnIHN0cm9rZS1taXRlcmxpbWl0PScxMCcgcG9pbnRlci1ldmVudHM9J2FsbCcvPjxnIGZpbGw9JyMwMDAwMDAnIGZvbnQtZmFtaWx5PSdBcmlhbCxIZWx2ZXRpY2EnIGZvbnQtc2l6ZT0nMjJweCcgZm9udC13ZWlnaHQ9JzgwMCc+PHRleHQgeD0nMjQuNScgeT0nLTE5LjUnPlI8L3RleHQ+PC9nPjwvZz48L3N2Zz4=")';
+            elt.style.backgroundPosition = 'center';
+            elt.style.backgroundSize = 'contain';
+            elt.style.backgroundRepeat = 'no-repeat';
+            elt.style.width = '24px';
+            elt.style.height = '24px';
+
+            const elt2 = ui.addButton('', 'Toggle Multiplicity', function() {
+                ui.actions.get('toggleMultiplicity').funct();
+            }, ui.toolbar.container);
+            elt2.style.backgroundImage = 'url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHhtbG5zOnhsaW5rPSdodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rJyB2ZXJzaW9uPScxLjEnIHdpZHRoPSc4MnB4JyBoZWlnaHQ9JzgycHgnIHZpZXdCb3g9Jy0wLjUgLTAuNSAxMjAgOTYnPjxkZWZzLz48Zz48cGF0aCBkPSdNIDEgMzQgTCAxMDEgMzQgTCAxMDEgOTQgTCAxIDk0IEwgMSAzNCBaJyBmaWxsPSdub25lJyBzdHJva2U9JyMwMDAwMDAnIHN0cm9rZS13aWR0aD0nMicgc3Ryb2tlLW1pdGVybGltaXQ9JzEwJyBwb2ludGVyLWV2ZW50cz0nYWxsJy8+PHBhdGggZD0nTSA5IDM0IEwgOSAyNiBMIDEwOSAyNiBMIDEwOSA4NiBMIDEwMSA4NicgZmlsbD0nbm9uZScgc3Ryb2tlPScjMDAwMDAwJyBzdHJva2Utd2lkdGg9JzInIHN0cm9rZS1taXRlcmxpbWl0PScxMCcgcG9pbnRlci1ldmVudHM9J2FsbCcvPjxwYXRoIGQ9J00gMjMuMSA5IEwgODIuOSA5JyBmaWxsPSdub25lJyBzdHJva2U9JyMwMDAwMDAnIHN0cm9rZS13aWR0aD0nMycgc3Ryb2tlLW1pdGVybGltaXQ9JzEwJyBwb2ludGVyLWV2ZW50cz0nc3Ryb2tlJy8+PHBhdGggZD0nTSAxNi4zNSA5IEwgMjUuMzUgNC41IEwgMjMuMSA5IEwgMjUuMzUgMTMuNSBaJyBmaWxsPScjMDAwMDAwJyBzdHJva2U9JyMwMDAwMDAnIHN0cm9rZS13aWR0aD0nMycgc3Ryb2tlLW1pdGVybGltaXQ9JzEwJyBwb2ludGVyLWV2ZW50cz0nYWxsJy8+PHBhdGggZD0nTSA4OS42NSA5IEwgODAuNjUgMTMuNSBMIDgyLjkgOSBMIDgwLjY1IDQuNSBaJyBmaWxsPScjMDAwMDAwJyBzdHJva2U9JyMwMDAwMDAnIHN0cm9rZS13aWR0aD0nMycgc3Ryb2tlLW1pdGVybGltaXQ9JzEwJyBwb2ludGVyLWV2ZW50cz0nYWxsJy8+PC9nPjwvc3ZnPg==")';
+            elt2.style.backgroundPosition = 'center';
+            elt2.style.backgroundSize = 'contain';
+            elt2.style.backgroundRepeat = 'no-repeat';
+            elt2.style.width = '24px';
+            elt2.style.height = '24px';
+        } else if (typeof ui.toolbar.addButton === 'function') {
+            // VSCode version: ui.toolbar.addButton returns button element
+            // Add buttons and then manually set their background images
+            const btn1 = ui.toolbar.addButton(null, mxResources.get('flipUse') || 'Flip Use Direction', function(evt) {
+                ui.actions.get('flipUse').funct();
+            });
+            if (btn1) {
+                btn1.style.backgroundImage = 'url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHhtbG5zOnhsaW5rPSdodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rJyB2ZXJzaW9uPScxLjEnIHdpZHRoPSc4MnB4JyBoZWlnaHQ9JzgycHgnIHZpZXdCb3g9Jy0wLjUgLTAuNSA4MiAyJz48Zz48cGF0aCBkPSdNIDAgMTAgTCAyMiAxMCcgZmlsbD0nbm9uZScgc3Ryb2tlPScjMDAwMDAwJyBzdHJva2UtbWl0ZXJsaW1pdD0nMTAnIHBvaW50ZXItZXZlbnRzPSdzdHJva2UnIHN0cm9rZS13aWR0aD0nNCcvPjxlbGxpcHNlIGN4PSc0MCcgY3k9JzEwJyByeD0nMTgnIHJ5PScxOCcgZmlsbD0nbm9uZScgc3Ryb2tlPScjMDAwMDAwJyBwb2ludGVyLWV2ZW50cz0nc3Ryb2tlJyBzdHJva2Utd2lkdGg9JzgnLz48cGF0aCBkPSdNIDU4IDEwIEwgODAgMTAnIGZpbGw9J25vbmUnIHN0cm9rZT0nIzAwMDAwMCcgc3Ryb2tlLW1pdGVybGltaXQ9JzEwJyBwb2ludGVyLWV2ZW50cz0nc3Ryb2tlJyBzdHJva2Utd2lkdGg9JzQnLz48cGF0aCBkPSdNIDQ1IC0zMCBMIDU1IC0yNSBMIDQ1IC0yMCBMIDQ3IC0yNSBMIDQ1IC0zMCBaJyBmaWxsPScjMDAwMDAwJyBzdHJva2U9JyMwMDAwMDAnIHN0cm9rZS1taXRlcmxpbWl0PScxMCcgcG9pbnRlci1ldmVudHM9J2FsbCcvPjxnIGZpbGw9JyMwMDAwMDAnIGZvbnQtZmFtaWx5PSdBcmlhbCxIZWx2ZXRpY2EnIGZvbnQtc2l6ZT0nMjJweCcgZm9udC13ZWlnaHQ9JzgwMCc+PHRleHQgeD0nMjQuNScgeT0nLTE5LjUnPlI8L3RleHQ+PC9nPjwvZz48L3N2Zz4=")';
+                btn1.style.backgroundPosition = 'center';
+                btn1.style.backgroundSize = 'contain';
+                btn1.style.backgroundRepeat = 'no-repeat';
+            }
+
+            const btn2 = ui.toolbar.addButton(null, 'Toggle Multiplicity', function(evt) {
+                ui.actions.get('toggleMultiplicity').funct();
+            });
+            if (btn2) {
+                btn2.style.backgroundImage = 'url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHhtbG5zOnhsaW5rPSdodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rJyB2ZXJzaW9uPScxLjEnIHdpZHRoPSc4MnB4JyBoZWlnaHQ9JzgycHgnIHZpZXdCb3g9Jy0wLjUgLTAuNSAxMjAgOTYnPjxkZWZzLz48Zz48cGF0aCBkPSdNIDEgMzQgTCAxMDEgMzQgTCAxMDEgOTQgTCAxIDk0IEwgMSAzNCBaJyBmaWxsPSdub25lJyBzdHJva2U9JyMwMDAwMDAnIHN0cm9rZS13aWR0aD0nMicgc3Ryb2tlLW1pdGVybGltaXQ9JzEwJyBwb2ludGVyLWV2ZW50cz0nYWxsJy8+PHBhdGggZD0nTSA5IDM0IEwgOSAyNiBMIDEwOSAyNiBMIDEwOSA4NiBMIDEwMSA4NicgZmlsbD0nbm9uZScgc3Ryb2tlPScjMDAwMDAwJyBzdHJva2Utd2lkdGg9JzInIHN0cm9rZS1taXRlcmxpbWl0PScxMCcgcG9pbnRlci1ldmVudHM9J2FsbCcvPjxwYXRoIGQ9J00gMjMuMSA5IEwgODIuOSA5JyBmaWxsPSdub25lJyBzdHJva2U9JyMwMDAwMDAnIHN0cm9rZS13aWR0aD0nMycgc3Ryb2tlLW1pdGVybGltaXQ9JzEwJyBwb2ludGVyLWV2ZW50cz0nc3Ryb2tlJy8+PHBhdGggZD0nTSAxNi4zNSA5IEwgMjUuMzUgNC41IEwgMjMuMSA5IEwgMjUuMzUgMTMuNSBaJyBmaWxsPScjMDAwMDAwJyBzdHJva2U9JyMwMDAwMDAnIHN0cm9rZS13aWR0aD0nMycgc3Ryb2tlLW1pdGVybGltaXQ9JzEwJyBwb2ludGVyLWV2ZW50cz0nYWxsJy8+PHBhdGggZD0nTSA4OS42NSA5IEwgODAuNjUgMTMuNSBMIDgyLjkgOSBMIDgwLjY1IDQuNSBaJyBmaWxsPScjMDAwMDAwJyBzdHJva2U9JyMwMDAwMDAnIHN0cm9rZS13aWR0aD0nMycgc3Ryb2tlLW1pdGVybGltaXQ9JzEwJyBwb2ludGVyLWV2ZW50cz0nYWxsJy8+PC9nPjwvc3ZnPg==")';
+                btn2.style.backgroundPosition = 'center';
+                btn2.style.backgroundSize = 'contain';
+                btn2.style.backgroundRepeat = 'no-repeat';
+            }
+        }
+    }
+
+    // Get the Graph constructor - try both global Graph and ui.editor.graph.constructor
+    const GraphConstructor = (typeof Graph !== 'undefined') ? Graph : ui.editor.graph.constructor;
+
+    // Initialize handleFactory if it doesn't exist
+    if (!GraphConstructor.handleFactory || typeof GraphConstructor.handleFactory !== "object") {
+        GraphConstructor.handleFactory = {};
+    }
+
+    // Check if we have the necessary objects for creating handles
+    if (typeof mxHandle !== 'undefined' && typeof mxVertexHandler !== 'undefined') {
         const singleDxDyPoint = (state) => {
             return [
                 createHandle(state, ['dx', 'dy'], function (bounds) {
@@ -1039,14 +1119,30 @@ Draw.loadPlugin(function (ui) {
                     }
                     return new mxPoint(bounds.x + dx + 8, bounds.y + dy - 8);
                 }, function (bounds, pt) {
-                    this.state.style['dx'] = Math.round(Math.max(0, Math.min(bounds.width, pt.x - bounds.x)));
-                    this.state.style['dy'] = Math.round(Math.max(0, Math.min(bounds.height, pt.y - bounds.y)));
+                    // Calculate bounds based on first and last points only (matching rendering logic at lines 422-423)
+                    const pts = this.state.absolutePoints;
+                    let maxWidth = bounds.width;
+                    let maxHeight = bounds.height;
+
+                    if (pts && pts.length >= 2) {
+                        // Rendering uses: left = min(first.x, last.x), top = min(first.y, last.y)
+                        const firstX = pts[0].x - this.state.x;
+                        const lastX = pts[pts.length - 1].x - this.state.x;
+                        const firstY = pts[0].y - this.state.y;
+                        const lastY = pts[pts.length - 1].y - this.state.y;
+
+                        maxWidth = Math.abs(lastX - firstX);
+                        maxHeight = Math.abs(lastY - firstY);
+                    }
+
+                    this.state.style['dx'] = Math.round(Math.max(0, Math.min(maxWidth, pt.x - bounds.x)));
+                    this.state.style['dy'] = Math.round(Math.max(0, Math.min(maxHeight, pt.y - bounds.y)));
                 }, false)
             ]
         };
 
-        Graph.handleFactory['lshape'] = singleDxDyPoint;
-        Graph.handleFactory['ushape'] = singleDxDyPoint;
-        Graph.handleFactory['useedge'] = singleDxDyPoint;
+        GraphConstructor.handleFactory['lshape'] = singleDxDyPoint;
+        GraphConstructor.handleFactory['ushape'] = singleDxDyPoint;
+        GraphConstructor.handleFactory['useedge'] = singleDxDyPoint;
     }
 });
