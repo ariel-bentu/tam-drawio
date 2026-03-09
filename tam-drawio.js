@@ -1082,19 +1082,14 @@ Draw.loadPlugin(function (ui) {
                 }, function (bounds, pt) {
                     // Calculate bounds based on first and last points only (matching rendering logic at lines 422-423)
                     const pts = this.state.absolutePoints;
-                    let maxWidth = bounds.width;
-                    let maxHeight = bounds.height;
 
-                    if (pts && pts.length >= 2) {
-                        // Rendering uses: left = min(first.x, last.x), top = min(first.y, last.y)
-                        const firstX = pts[0].x - this.state.x;
-                        const lastX = pts[pts.length - 1].x - this.state.x;
-                        const firstY = pts[0].y - this.state.y;
-                        const lastY = pts[pts.length - 1].y - this.state.y;
+                    const left = Math.min(...pts.map(o => o.x));
+                    const right = Math.max(...pts.map(o => o.x));
+                    const top = Math.min(...pts.map(o => o.y));
+                    const bottom = Math.max(...pts.map(o => o.y));
 
-                        maxWidth = Math.abs(lastX - firstX);
-                        maxHeight = Math.abs(lastY - firstY);
-                    }
+                    let maxWidth = Math.abs(right - left);
+                    let maxHeight = Math.abs(bottom - top);
 
                     this.state.style['dx'] = Math.round(Math.max(0, Math.min(maxWidth, pt.x - bounds.x)));
                     this.state.style['dy'] = Math.round(Math.max(0, Math.min(maxHeight, pt.y - bounds.y)));
