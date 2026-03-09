@@ -398,7 +398,7 @@ Draw.loadPlugin(function (ui) {
             }
 
             const circleRadius = 8;
-            let x = 0, y = 0;
+            let x = pts[0].x, y = pts[0].y;
             let p0 = 0, p1 = 1;
             let vertLine = isVertical;
 
@@ -419,17 +419,15 @@ Draw.loadPlugin(function (ui) {
                 //calculate on-the-line point
                 p0 = 0;
                 p1 = 1;
-                let left = Math.min(pts[0].x, pts[pts.length - 1].x);
-                let top = Math.min(pts[0].y, pts[pts.length - 1].y);
+                let left = Math.min(...pts.map(o => o.x));
+                let right = Math.max(...pts.map(o => o.x));
+                let top = Math.min(...pts.map(o => o.y));
+                let bottom = Math.max(...pts.map(o => o.y));
                 rectMsg = "[" + left + "," + top + "]"
                 for (let i = 0; i < pts.length - 1; i++) {
 
-                    // Use tolerance for vertical/horizontal checks to handle floating point imprecision
-                    const isVerticalSegment = Math.abs(pts[i].x - pts[i + 1].x) < 1;
-                    const isHorizontalSegment = Math.abs(pts[i].y - pts[i + 1].y) < 1;
-
-                    if (isVerticalSegment || isVertical && pts.length === 2) {
-                        if (inBetween(top + cy, pts[i].y, pts[i + 1].y)) {
+                    if (Math.abs(pts[i].x - pts[i + 1].x) <= 2 * circleRadius || isVertical && pts.length === 2) {
+                        if (inBetween(Math.min(top + cy, bottom), pts[i].y, pts[i + 1].y)) {
                             y = top + cy;
                             x = pts[i].x;
                             p0 = i;
@@ -441,8 +439,8 @@ Draw.loadPlugin(function (ui) {
                                 break;
                             }
                         }
-                    } else if (isHorizontalSegment) {
-                        if (inBetween(left + cx, pts[i].x, pts[i + 1].x)) {
+                    } else {
+                        if (inBetween(Math.min(left + cx, right), pts[i].x, pts[i + 1].x)) {
                             y = pts[i].y;
                             x = left + cx;
                             p0 = i;
@@ -461,35 +459,11 @@ Draw.loadPlugin(function (ui) {
             const lineDirectionCoefficient = vertLine ?
                 (pts[p0].y > pts[p1].y ? 1 : -1) :
                 (pts[p0].x < pts[p1].x ? 1 : -1);
-
-            // Check if circle is at or very close to a bend point
-            const atBendP0 = p0 > 0 && Math.abs(x - pts[p0].x) < circleRadius && Math.abs(y - pts[p0].y) < circleRadius;
-            const atBendP1 = p1 < pts.length - 1 && Math.abs(x - pts[p1].x) < circleRadius && Math.abs(y - pts[p1].y) < circleRadius;
-
-            // Calculate cutoff point for the current segment
             let cpt = vertLine ?
                 new mxPoint(x, y + lineDirectionCoefficient * circleRadius) :
                 new mxPoint(x - lineDirectionCoefficient * circleRadius, y);
-
             //ui.editor.setStatus(rectMsg + "--" + JSON.stringify(pts) + "--" + cpt.x + "," + cpt.y)
-
-            let pts1;
-            if (atBendP0) {
-                // At the start bend - need to add cutoff point for the previous segment direction
-                const prevSegmentVertical = Math.abs(pts[p0 - 1].x - pts[p0].x) < 1;
-                const prevDirCoeff = prevSegmentVertical ?
-                    (pts[p0 - 1].y > pts[p0].y ? 1 : -1) :
-                    (pts[p0 - 1].x < pts[p0].x ? 1 : -1);
-                const prevCpt = prevSegmentVertical ?
-                    new mxPoint(x, y + prevDirCoeff * circleRadius) :
-                    new mxPoint(x - prevDirCoeff * circleRadius, y);
-                pts1 = [...pts.slice(0, p0), prevCpt];
-            } else if (atBendP1) {
-                // At the end bend - the current segment goes TO the bend, so use its cutoff
-                pts1 = [...pts.slice(0, p0 + 1), cpt];
-            } else {
-                pts1 = [...pts.slice(0, p0 + 1), cpt];
-            }
+            let pts1 = [...pts.slice(0, p0 + 1), cpt]
             const strokeWidth = c.state.strokeWidth;
             c.setStrokeWidth(strokeWidth);
             drawEdge(pts1);
@@ -509,26 +483,13 @@ Draw.loadPlugin(function (ui) {
             c.setStrokeWidth(strokeWidth);
             cpt = vertLine ?
                 new mxPoint(x, y - lineDirectionCoefficient * circleRadius) :
-                new mxPoint(x + lineDirectionCoefficient * circleRadius, y);
-
+                new mxPoint(x + lineDirectionCoefficient * circleRadius, y)
             let endPoint =
                 (pts.length === 2) ?
                     (vertLine ? new mxPoint(pts[0].x, pts[1].y) : new mxPoint(pts[1].x, pts[0].y)) :
                     pts[pts.length - 1];
 
-            if (atBendP1) {
-                // At the end bend - need to add cutoff point for the next segment direction
-                const nextSegmentVertical = Math.abs(pts[p1].x - pts[p1 + 1].x) < 1;
-                const nextDirCoeff = nextSegmentVertical ?
-                    (pts[p1].y < pts[p1 + 1].y ? -1 : 1) :
-                    (pts[p1].x < pts[p1 + 1].x ? -1 : 1);
-                const nextCpt = nextSegmentVertical ?
-                    new mxPoint(x, y - nextDirCoeff * circleRadius) :
-                    new mxPoint(x + nextDirCoeff * circleRadius, y);
-                pts1 = [nextCpt, ...pts.slice(p1 + 1, pts.length - 1), endPoint];
-            } else {
-                pts1 = [cpt, ...pts.slice(p1, pts.length - 1), endPoint];
-            }
+            pts1 = [cpt, ...pts.slice(p1, pts.length - 1), endPoint];
             drawEdge(pts1);
 
             c.pointerEventsValue = prev;
