@@ -6,7 +6,7 @@ Draw.loadPlugin(function (ui) {
         // user settings
         Editor?.globalVars?.tam
     );
-    
+
     const tamConstants = {
         UP: 'up',
         DOWN: 'down',
@@ -916,7 +916,7 @@ Draw.loadPlugin(function (ui) {
 
     // Listen for theme changes and refresh the graph to update circle colors
     if (typeof ui.addListener === 'function') {
-        ui.addListener('darkModeChanged', function() {
+        ui.addListener('darkModeChanged', function () {
             ui.editor.graph.refresh();
         });
     }
@@ -1012,7 +1012,7 @@ Draw.loadPlugin(function (ui) {
         // Different APIs between web and VSCode
         if (typeof ui.addButton === 'function') {
             // Web version: ui.addButton(label, tooltip, fn, container)
-            const elt = ui.addButton('', mxResources.get('flipUse') || 'Flip Use Direction', function() {
+            const elt = ui.addButton('', mxResources.get('flipUse') || 'Flip Use Direction', function () {
                 ui.actions.get('flipUse').funct();
             }, ui.toolbar.container);
             elt.style.backgroundImage = 'url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHhtbG5zOnhsaW5rPSdodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rJyB2ZXJzaW9uPScxLjEnIHdpZHRoPSc4MnB4JyBoZWlnaHQ9JzgycHgnIHZpZXdCb3g9Jy0wLjUgLTAuNSA4MiAyJz48Zz48cGF0aCBkPSdNIDAgMTAgTCAyMiAxMCcgZmlsbD0nbm9uZScgc3Ryb2tlPScjMDAwMDAwJyBzdHJva2UtbWl0ZXJsaW1pdD0nMTAnIHBvaW50ZXItZXZlbnRzPSdzdHJva2UnIHN0cm9rZS13aWR0aD0nNCcvPjxlbGxpcHNlIGN4PSc0MCcgY3k9JzEwJyByeD0nMTgnIHJ5PScxOCcgZmlsbD0nbm9uZScgc3Ryb2tlPScjMDAwMDAwJyBwb2ludGVyLWV2ZW50cz0nc3Ryb2tlJyBzdHJva2Utd2lkdGg9JzgnLz48cGF0aCBkPSdNIDU4IDEwIEwgODAgMTAnIGZpbGw9J25vbmUnIHN0cm9rZT0nIzAwMDAwMCcgc3Ryb2tlLW1pdGVybGltaXQ9JzEwJyBwb2ludGVyLWV2ZW50cz0nc3Ryb2tlJyBzdHJva2Utd2lkdGg9JzQnLz48cGF0aCBkPSdNIDQ1IC0zMCBMIDU1IC0yNSBMIDQ1IC0yMCBMIDQ3IC0yNSBMIDQ1IC0zMCBaJyBmaWxsPScjMDAwMDAwJyBzdHJva2U9JyMwMDAwMDAnIHN0cm9rZS1taXRlcmxpbWl0PScxMCcgcG9pbnRlci1ldmVudHM9J2FsbCcvPjxnIGZpbGw9JyMwMDAwMDAnIGZvbnQtZmFtaWx5PSdBcmlhbCxIZWx2ZXRpY2EnIGZvbnQtc2l6ZT0nMjJweCcgZm9udC13ZWlnaHQ9JzgwMCc+PHRleHQgeD0nMjQuNScgeT0nLTE5LjUnPlI8L3RleHQ+PC9nPjwvZz48L3N2Zz4=")';
@@ -1022,7 +1022,7 @@ Draw.loadPlugin(function (ui) {
             elt.style.width = '24px';
             elt.style.height = '24px';
 
-            const elt2 = ui.addButton('', 'Toggle Multiplicity', function() {
+            const elt2 = ui.addButton('', 'Toggle Multiplicity', function () {
                 ui.actions.get('toggleMultiplicity').funct();
             }, ui.toolbar.container);
             elt2.style.backgroundImage = 'url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHhtbG5zOnhsaW5rPSdodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rJyB2ZXJzaW9uPScxLjEnIHdpZHRoPSc4MnB4JyBoZWlnaHQ9JzgycHgnIHZpZXdCb3g9Jy0wLjUgLTAuNSAxMjAgOTYnPjxkZWZzLz48Zz48cGF0aCBkPSdNIDEgMzQgTCAxMDEgMzQgTCAxMDEgOTQgTCAxIDk0IEwgMSAzNCBaJyBmaWxsPSdub25lJyBzdHJva2U9JyMwMDAwMDAnIHN0cm9rZS13aWR0aD0nMicgc3Ryb2tlLW1pdGVybGltaXQ9JzEwJyBwb2ludGVyLWV2ZW50cz0nYWxsJy8+PHBhdGggZD0nTSA5IDM0IEwgOSAyNiBMIDEwOSAyNiBMIDEwOSA4NiBMIDEwMSA4NicgZmlsbD0nbm9uZScgc3Ryb2tlPScjMDAwMDAwJyBzdHJva2Utd2lkdGg9JzInIHN0cm9rZS1taXRlcmxpbWl0PScxMCcgcG9pbnRlci1ldmVudHM9J2FsbCcvPjxwYXRoIGQ9J00gMjMuMSA5IEwgODIuOSA5JyBmaWxsPSdub25lJyBzdHJva2U9JyMwMDAwMDAnIHN0cm9rZS13aWR0aD0nMycgc3Ryb2tlLW1pdGVybGltaXQ9JzEwJyBwb2ludGVyLWV2ZW50cz0nc3Ryb2tlJy8+PHBhdGggZD0nTSAxNi4zNSA5IEwgMjUuMzUgNC41IEwgMjMuMSA5IEwgMjUuMzUgMTMuNSBaJyBmaWxsPScjMDAwMDAwJyBzdHJva2U9JyMwMDAwMDAnIHN0cm9rZS13aWR0aD0nMycgc3Ryb2tlLW1pdGVybGltaXQ9JzEwJyBwb2ludGVyLWV2ZW50cz0nYWxsJy8+PHBhdGggZD0nTSA4OS42NSA5IEwgODAuNjUgMTMuNSBMIDgyLjkgOSBMIDgwLjY1IDQuNSBaJyBmaWxsPScjMDAwMDAwJyBzdHJva2U9JyMwMDAwMDAnIHN0cm9rZS13aWR0aD0nMycgc3Ryb2tlLW1pdGVybGltaXQ9JzEwJyBwb2ludGVyLWV2ZW50cz0nYWxsJy8+PC9nPjwvc3ZnPg==")';
@@ -1034,7 +1034,7 @@ Draw.loadPlugin(function (ui) {
         } else if (typeof ui.toolbar.addButton === 'function') {
             // VSCode version: ui.toolbar.addButton returns button element
             // Add buttons and then manually set their background images
-            const btn1 = ui.toolbar.addButton(null, mxResources.get('flipUse') || 'Flip Use Direction', function(evt) {
+            const btn1 = ui.toolbar.addButton(null, mxResources.get('flipUse') || 'Flip Use Direction', function (evt) {
                 ui.actions.get('flipUse').funct();
             });
             if (btn1) {
@@ -1044,7 +1044,7 @@ Draw.loadPlugin(function (ui) {
                 btn1.style.backgroundRepeat = 'no-repeat';
             }
 
-            const btn2 = ui.toolbar.addButton(null, 'Toggle Multiplicity', function(evt) {
+            const btn2 = ui.toolbar.addButton(null, 'Toggle Multiplicity', function (evt) {
                 ui.actions.get('toggleMultiplicity').funct();
             });
             if (btn2) {
@@ -1081,19 +1081,10 @@ Draw.loadPlugin(function (ui) {
                     return new mxPoint(bounds.x + dx + 8, bounds.y + dy - 8);
                 }, function (bounds, pt) {
                     // Calculate bounds based on first and last points only (matching rendering logic at lines 422-423)
-                    const pts = this.state.absolutePoints;
-
-                    const left = Math.min(...pts.map(o => o.x));
-                    const right = Math.max(...pts.map(o => o.x));
-                    const top = Math.min(...pts.map(o => o.y));
-                    const bottom = Math.max(...pts.map(o => o.y));
-
-                    let maxWidth = Math.abs(right - left);
-                    let maxHeight = Math.abs(bottom - top);
-
-                    this.state.style['dx'] = Math.round(Math.max(0, Math.min(maxWidth, pt.x - bounds.x)));
-                    this.state.style['dy'] = Math.round(Math.max(0, Math.min(maxHeight, pt.y - bounds.y)));
+                    this.state.style['dx'] = Math.round(Math.max(0, Math.min(bounds.width, pt.x - bounds.x)));
+                    this.state.style['dy'] = Math.round(Math.max(0, Math.min(bounds.height, pt.y - bounds.y)));
                 }, false)
+
             ]
         };
 
