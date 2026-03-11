@@ -404,7 +404,7 @@ Draw.loadPlugin(function (ui) {
 
             let cx = mxUtils.getNumber(this.state.style, 'dx', -1);
             let cy = mxUtils.getNumber(this.state.style, 'dy', -1);
-            let rectMsg = ""
+
             if (cx === -1 || cy === -1) {
                 //uninitialized
                 if (pts.length > 2) {
@@ -423,7 +423,6 @@ Draw.loadPlugin(function (ui) {
                 let right = Math.max(...pts.map(o => o.x));
                 let top = Math.min(...pts.map(o => o.y));
                 let bottom = Math.max(...pts.map(o => o.y));
-                rectMsg = "[" + left + "," + top + "]"
                 for (let i = 0; i < pts.length - 1; i++) {
 
                     if (Math.abs(pts[i].x - pts[i + 1].x) <= 2 * circleRadius || isVertical && pts.length === 2) {
@@ -498,13 +497,39 @@ Draw.loadPlugin(function (ui) {
             let useSignPosition = mxUtils.getValue(this.style, 'useSignPosition', 'up');
             let useSignDirection = mxUtils.getValue(this.style, 'useSignDirection', 'none');
 
+            // For L-shapes (isVertical='both'), the user's chosen direction needs to be adapted
+            // to the current segment orientation. If they choose south (down), it should point
+            // down when on a vertical segment, but should point right when on a horizontal segment.
+            if (pts.length > 2 && isVertical === 'both' && useSignDirection !== 'none' && useSignDirection !== 'both') {
+                const isDirectionVertical = (useSignDirection === 'north' || useSignDirection === 'south');
+                const isSegmentVertical = vertLine;
+
+                // If direction orientation doesn't match segment orientation, rotate it
+                if (isDirectionVertical !== isSegmentVertical) {
+                    useSignDirection = rotateDirection[useSignDirection];
+                }
+            }
+
             // Preserve logical direction of triangle, when curve is flipped
             if (useSignDirection !== 'none' && lineDirectionCoefficient === -1) {
                 useSignDirection = flipDirection[useSignDirection];
             }
 
             // Adjust the location to the position of the circle
-            if (pts.length > 2 && p0 % 2 === 0) {
+            // For S-shapes: use original p0 % 2 === 0 logic (works correctly for alternating segments)
+            // For L-shapes (isVertical='both'): adjust position based on current segment orientation
+            if (pts.length > 2 && isVertical === 'both') {
+                // For vertical segments, position should be 'left' or 'right'
+                // For horizontal segments, position should be 'up' or 'down'
+                const basePosition = mxUtils.getValue(this.style, 'useSignPosition', 'up');
+                if (vertLine) {
+                    // Vertical segment - position should be horizontal (left/right)
+                    useSignPosition = (basePosition === 'up' || basePosition === 'left') ? 'left' : 'right';
+                } else {
+                    // Horizontal segment - position should be vertical (up/down)
+                    useSignPosition = (basePosition === 'up' || basePosition === 'left') ? 'up' : 'down';
+                }
+            } else if (pts.length > 2 && p0 % 2 === 0) {
                 useSignPosition = rotatePosition[useSignPosition];
                 useSignDirection = rotateDirection[useSignDirection];
             }
@@ -818,7 +843,7 @@ Draw.loadPlugin(function (ui) {
         content.appendChild(ui.sidebar.createEdgeTemplate('shape=useedge;endArrow=none;edgeStyle=none;useSignPosition=up;useSignDirection=east;', 160, 0, '', 'Horizontal Channel'));
         content.appendChild(ui.sidebar.createEdgeTemplate('rounded=1;shape=useedge;vertical=true;edgeStyle=elbowEdgeStyle;elbow=vertical;endArrow=none;useSignPosition=up;useSignDirection=east;', 70, 160, '', 'Vertical S-Channel'));
         content.appendChild(ui.sidebar.createEdgeTemplate('rounded=1;shape=useedge;edgeStyle=elbowEdgeStyle;elbow=horizontal;endArrow=none;useSignPosition=left;useSignDirection=south;', 160, 70, '', 'Horizontal S-Channel'));
-        content.appendChild(ui.sidebar.createEdgeTemplate('rounded=1;shape=useedge;vertical=true;edgeStyle=orthogonalEdgeStyle;endArrow=none;useSignPosition=left;useSignDirection=south;', 70, 160, '', 'L-Channel'));
+        content.appendChild(ui.sidebar.createEdgeTemplate('rounded=1;shape=useedge;vertical=both;edgeStyle=orthogonalEdgeStyle;endArrow=none;useSignPosition=left;useSignDirection=south;', 70, 160, '', 'L-Channel'));
         content.appendChild(ui.sidebar.createVertexTemplate('rounded=1;whiteSpace=wrap;html=1;arcSize=60;strokeWidth=2;', 90, 40, '', 'Storage'));
         content.appendChild(ui.sidebar.createEdgeTemplateFromCells([VerticalUpdateEdgeCodec.prototype.create()], 160, 0, 'Vertical Access'));
         content.appendChild(ui.sidebar.createEdgeTemplateFromCells([HorizontalUpdateEdgeCodec.prototype.create()], 160, 0, 'Horizontal Access'));
