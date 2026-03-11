@@ -426,7 +426,7 @@ Draw.loadPlugin(function (ui) {
                 for (let i = 0; i < pts.length - 1; i++) {
 
                     if (Math.abs(pts[i].x - pts[i + 1].x) <= 2 * circleRadius || isVertical && pts.length === 2) {
-                        if (inBetween(Math.min(top + cy, bottom), pts[i].y, pts[i + 1].y)) {
+                        if (inBetween(Math.max(top + circleRadius, Math.min(top + cy, bottom - circleRadius)), pts[i].y, pts[i + 1].y)) {
                             y = top + cy;
                             x = pts[i].x;
                             p0 = i;
@@ -439,7 +439,7 @@ Draw.loadPlugin(function (ui) {
                             }
                         }
                     } else {
-                        if (inBetween(Math.min(left + cx, right), pts[i].x, pts[i + 1].x)) {
+                        if (inBetween(Math.max(left + circleRadius, Math.min(left + cx, right - circleRadius)), pts[i].x, pts[i + 1].x)) {
                             y = pts[i].y;
                             x = left + cx;
                             p0 = i;
@@ -467,18 +467,6 @@ Draw.loadPlugin(function (ui) {
             c.setStrokeWidth(strokeWidth);
             drawEdge(pts1);
 
-            c.setStrokeWidth(strokeWidth * 2);
-            c.ellipse(
-                x - circleRadius,
-                y - circleRadius,
-                circleRadius * 2,
-                circleRadius * 2
-            );
-            // Adapt circle fill color to theme: white for light mode, black for dark mode
-            const isDarkMode = typeof Editor !== 'undefined' && Editor.darkMode;
-            c.setFillColor(isDarkMode ? '#000000' : '#FFFFFF');
-            c.fillAndStroke()
-
             c.setStrokeWidth(strokeWidth);
             cpt = vertLine ?
                 new mxPoint(x, y - lineDirectionCoefficient * circleRadius) :
@@ -490,6 +478,18 @@ Draw.loadPlugin(function (ui) {
 
             pts1 = [cpt, ...pts.slice(p1, pts.length - 1), endPoint];
             drawEdge(pts1);
+
+            c.setStrokeWidth(strokeWidth * 2);
+            c.ellipse(
+                x - circleRadius,
+                y - circleRadius,
+                circleRadius * 2,
+                circleRadius * 2
+            );
+            // Adapt circle fill color to theme: white for light mode, black for dark mode
+            const isDarkMode = typeof Editor !== 'undefined' && Editor.darkMode;
+            c.setFillColor(isDarkMode ? '#000000' : '#FFFFFF');
+            c.fillAndStroke()
 
             c.pointerEventsValue = prev;
 
