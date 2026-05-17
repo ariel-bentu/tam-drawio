@@ -134,6 +134,22 @@ Add the following entry in the VSCode `settings.json` (<kbd>F1</kbd> --> `Prefer
 ## Usage tips
 - When using the using-edge (the line with circle and "R" and arrow), you can flip the direction by selecting the edge and pressing the new button on the toolbar (tooltip: Flip Use Direction).
 - Use direction and side, can be controlled by the Style.
+
+### Flow Animation
+The plugin supports animated flowing dots on connectors to visualize data or control flow direction.
+
+Two toolbar buttons control animation:
+
+- **Toggle Edge Animation** (single-dot icon) — cycles the selected connector(s) through four animation states:
+  - `none` — no animation
+  - `fwd` — dots flow forward (left-to-right / top-to-bottom)
+  - `rev` — dots flow in reverse
+  - `both` — two simultaneous flows in opposite directions
+
+  The button is enabled whenever one or more connectors are selected (works on use-edges and all other TAM connectors). The animation state is saved as part of the diagram (persisted in the cell style as `animated=fwd/rev/both`).
+
+- **Toggle Global Animation** (three-dots icon) — master on/off switch for all animation in the diagram. Starts enabled by default. Toggling it off pauses all animated connectors without changing their individual settings.
+
 - If you send the model to another person, that other person would need the TAM plugin to view it properly.
 
 Therefore, the plugin adds a hidden text saying: `Best viewed with the TAM plugin` with a link to this repo. This text field is hidden as long as you have the plugin installed. Anyone without a plugin, will see this text item. (this is also hidden in the svg representation of a model).

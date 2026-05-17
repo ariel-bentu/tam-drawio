@@ -46,6 +46,36 @@ Draw.loadPlugin(function (ui) {
         [tamConstants.NONE]: tamConstants.NONE,
     }
 
+    if (!document.getElementById('tam-animation-styles')) {
+        const tamStyle = document.createElement('style');
+        tamStyle.id = 'tam-animation-styles';
+        tamStyle.textContent = `
+            @keyframes tam-flow-fwd {
+                from { stroke-dashoffset: 24; }
+                to   { stroke-dashoffset: 0; }
+            }
+            @keyframes tam-flow-rev {
+                from { stroke-dashoffset: -24; }
+                to   { stroke-dashoffset: 0; }
+            }
+            .tam-flow-overlay {
+                fill: none;
+                stroke-dasharray: 3 21;
+                stroke-width: 3;
+                pointer-events: none;
+            }
+            .tam-flow-fwd {
+                animation: tam-flow-fwd 1.2s linear infinite;
+            }
+            .tam-flow-rev {
+                animation: tam-flow-rev 1.2s linear infinite;
+            }
+        `;
+        (document.head || document.documentElement).appendChild(tamStyle);
+    }
+
+    let tamAnimationEnabled = true;
+
     const arrowPointerPts = {
         [tamConstants.DIRECTION_EAST]: [[2, 0], [0, 5], [10, 0], [0, -5], [2, 0]],
         [tamConstants.DIRECTION_WEST]: [[-2, 0], [0, 5], [-10, 0], [0, -5], [-2, 0]],
@@ -963,6 +993,65 @@ Draw.loadPlugin(function (ui) {
     }
 
 
+    // Returns the two polyline segments that UseEdgeShape actually draws (replicates its path logic)
+    // Returns { seg1: [mxPoint,...], seg2: [mxPoint,...] } — seg1 goes from start to just before circle,
+    // seg2 goes from just after circle to end.
+    function getUseEdgeDrawSegments(pts, style) {
+        if (!pts || pts.length < 2) return null;
+        const isVertical = mxUtils.getValue(style, 'vertical', false);
+        const circleRadius = 8;
+        let p0 = 0, p1 = 1;
+        let vertLine = isVertical;
+        let x, y;
+
+        const cx = mxUtils.getNumber(style, 'dx', -1);
+        const cy = mxUtils.getNumber(style, 'dy', -1);
+
+        const inBetween = (n, n1, n2) => (n >= n1 && n <= n2 || n >= n2 && n <= n1);
+
+        if (cx === -1 || cy === -1) {
+            if (pts.length > 2) {
+                p0 = Math.floor(pts.length / 2) - 1;
+                p1 = p0 + 1;
+            }
+            const mid = getEdgeMidPoint(pts, isVertical);
+            vertLine = (pts.length === 2) ? isVertical : !isVertical;
+            x = mid.x;
+            y = mid.y;
+        } else {
+            p0 = 0; p1 = 1;
+            const left = Math.min(...pts.map(o => o.x));
+            const right = Math.max(...pts.map(o => o.x));
+            const top = Math.min(...pts.map(o => o.y));
+            const bottom = Math.max(...pts.map(o => o.y));
+            for (let i = 0; i < pts.length - 1; i++) {
+                if (Math.abs(pts[i].x - pts[i + 1].x) <= 2 * circleRadius || isVertical && pts.length === 2) {
+                    if (inBetween(Math.max(top + circleRadius, Math.min(top + cy, bottom - circleRadius)), pts[i].y, pts[i + 1].y)) {
+                        y = top + cy; x = pts[i].x; p0 = i; p1 = i + 1; vertLine = true;
+                        if (Math.abs(pts[i].x - (left + cx)) <= 2 * circleRadius) break;
+                    }
+                } else {
+                    if (inBetween(Math.max(left + circleRadius, Math.min(left + cx, right - circleRadius)), pts[i].x, pts[i + 1].x)) {
+                        y = pts[i].y; x = left + cx; p0 = i; p1 = i + 1; vertLine = false;
+                        if (Math.abs(pts[i].y - (top + cy)) <= 2 * circleRadius) break;
+                    }
+                }
+            }
+        }
+
+        const dir = vertLine ? (pts[p0].y > pts[p1].y ? 1 : -1) : (pts[p0].x < pts[p1].x ? 1 : -1);
+        const cpt1 = vertLine ? new mxPoint(x, y + dir * circleRadius) : new mxPoint(x - dir * circleRadius, y);
+        const cpt2 = vertLine ? new mxPoint(x, y - dir * circleRadius) : new mxPoint(x + dir * circleRadius, y);
+        const endPoint = (pts.length === 2)
+            ? (vertLine ? new mxPoint(pts[0].x, pts[1].y) : new mxPoint(pts[1].x, pts[0].y))
+            : pts[pts.length - 1];
+
+        return {
+            seg1: [...pts.slice(0, p0 + 1), cpt1],
+            seg2: [cpt2, ...pts.slice(p1, pts.length - 1), endPoint]
+        };
+    }
+
     // Adds action
     ui.actions.addAction('flipUse', function () {
 
@@ -1030,6 +1119,138 @@ Draw.loadPlugin(function (ui) {
         }
     });
 
+    let animBtn3 = null;
+    let animBtn4 = null;
+
+    ui.actions.addAction('toggleEdgeAnimation', function () {
+        const graph = ui.editor.graph;
+        const cells = graph.getSelectionCells().filter(cell => cell.edge);
+        if (cells.length === 0) return;
+
+        const cycle = { 'none': 'fwd', 'fwd': 'rev', 'rev': 'both', 'both': 'none' };
+
+        graph.getModel().beginUpdate();
+        try {
+            cells.forEach(cell => {
+                const current = mxUtils.getValue(tamUtils.getStyleObject(cell.style), 'animated', 'none');
+                const next = cycle[current] || 'fwd';
+                cell.setStyle(mxUtils.setStyle(cell.style, 'animated', next));
+            });
+        } finally {
+            graph.getModel().endUpdate();
+        }
+        tamUpdateOverlays();
+        if (animBtn3) {
+            const anyActive = cells.some(cell =>
+                mxUtils.getValue(tamUtils.getStyleObject(cell.style), 'animated', 'none') !== 'none'
+            );
+            animBtn3.style.outline = anyActive ? '2px solid #1e88e5' : 'none';
+        }
+    });
+
+    ui.actions.addAction('toggleGlobalAnimation', function () {
+        tamAnimationEnabled = !tamAnimationEnabled;
+        ui.editor.graph.refresh();
+        tamUpdateOverlays();
+        if (typeof updateGlobalAnimBtn === 'function') updateGlobalAnimBtn();
+    });
+
+    let updateGlobalAnimBtn = null;
+
+    // Dedicated overlay group inside the graph's own SVG canvas — coordinates match exactly
+    function tamUpdateOverlays() {
+        const graph = ui.editor.graph;
+        const canvas = graph.view.canvas;  // the <g> that all shapes are drawn into; shares coord space with absolutePoints
+        const ns = 'http://www.w3.org/2000/svg';
+        if (!canvas) return;
+
+        // Append overlay inside canvas so it inherits the same transform — no coord conversion needed
+        let overlayG = canvas.querySelector('#tam-anim-overlay-g');
+        if (!overlayG) {
+            overlayG = document.createElementNS(ns, 'g');
+            overlayG.id = 'tam-anim-overlay-g';
+            overlayG.setAttribute('pointer-events', 'none');
+            canvas.appendChild(overlayG);
+        }
+
+        // Clear existing overlays
+        while (overlayG.firstChild) overlayG.removeChild(overlayG.firstChild);
+
+        if (!tamAnimationEnabled) return;
+
+        const model = graph.getModel();
+        const view = graph.view;
+
+        // Walk all cells, find animated edges
+        const visit = (cell) => {
+            if (cell.edge) {
+                const style = cell.style || '';
+                const styleObj = tamUtils.getStyleObject(style);
+                const animValue = mxUtils.getValue(styleObj, 'animated', 'none');
+                if (animValue !== 'none') {
+                    const state = view.getState(cell);
+                    if (state && state.absolutePoints && state.absolutePoints.length >= 2) {
+                        const pts = state.absolutePoints;
+                        const isUseEdge = mxUtils.getValue(styleObj, 'shape', '') === 'useedge';
+
+                        let d;
+                        if (isUseEdge) {
+                            const segs = getUseEdgeDrawSegments(pts, styleObj);
+                            if (!segs) return;
+                            const segToD = (seg) => seg.filter(Boolean).map((p, i) => (i === 0 ? 'M' : 'L') + p.x + ' ' + p.y).join(' ');
+                            d = segToD(segs.seg1) + ' ' + segToD(segs.seg2);
+                        } else {
+                            d = pts.filter(Boolean).map((p, i) => (i === 0 ? 'M' : 'L') + p.x + ' ' + p.y).join(' ');
+                        }
+                        if (!d.trim()) return;
+
+                        const strokeColor = mxUtils.getValue(styleObj, 'strokeColor', '#000000');
+
+                        const makePath = (animName) => {
+                            const p = document.createElementNS(ns, 'path');
+                            p.setAttribute('d', d);
+                            p.setAttribute('stroke', strokeColor);
+                            p.setAttribute('fill', 'none');
+                            p.setAttribute('stroke-dasharray', '3 21');
+                            p.setAttribute('stroke-width', '3');
+                            p.setAttribute('pointer-events', 'none');
+                            p.style.animation = animName + ' 1.2s linear infinite';
+                            return p;
+                        };
+
+                        if (animValue === 'both') {
+                            overlayG.appendChild(makePath('tam-flow-fwd'));
+                            overlayG.appendChild(makePath('tam-flow-rev'));
+                        } else if (animValue === 'fwd') {
+                            overlayG.appendChild(makePath('tam-flow-fwd'));
+                        } else if (animValue === 'rev') {
+                            overlayG.appendChild(makePath('tam-flow-rev'));
+                        }
+                    }
+                }
+            }
+            const childCount = model.getChildCount(cell);
+            for (let i = 0; i < childCount; i++) {
+                visit(model.getChildAt(cell, i));
+            }
+        };
+        visit(model.getRoot());
+    }
+
+    // Re-run overlays after any graph repaint
+    const _origValidate = ui.editor.graph.view.revalidate.bind(ui.editor.graph.view);
+    ui.editor.graph.view.revalidate = function() {
+        _origValidate();
+        tamUpdateOverlays();
+    };
+
+    // Update overlays continuously during drag (graphHandler fires on every mouse move while dragging)
+    ui.editor.graph.addMouseListener({
+        mouseDown: function() {},
+        mouseMove: function() { tamUpdateOverlays(); },
+        mouseUp: function() { tamUpdateOverlays(); }
+    });
+
     // Add toolbar buttons (works in both web and VSCode)
     if (ui.toolbar) {
         ui.toolbar.addSeparator();
@@ -1056,6 +1277,33 @@ Draw.loadPlugin(function (ui) {
             elt2.style.backgroundRepeat = 'no-repeat';
             elt2.style.width = '24px';
             elt2.style.height = '24px';
+
+            const elt3 = ui.addButton('', 'Toggle Edge Animation', function () {
+                ui.actions.get('toggleEdgeAnimation').funct();
+            }, ui.toolbar.container);
+            elt3.style.backgroundImage = 'url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPScyNCcgaGVpZ2h0PScyNCcgdmlld0JveD0nMCAwIDI0IDI0Jz48bGluZSB4MT0nMicgeTE9JzEyJyB4Mj0nMjInIHkyPScxMicgc3Ryb2tlPScjMDAwJyBzdHJva2Utd2lkdGg9JzInLz48Y2lyY2xlIGN4PScxMicgY3k9JzEyJyByPSczJyBmaWxsPScjMDAwJy8+PC9zdmc+")';
+            elt3.style.backgroundPosition = 'center';
+            elt3.style.backgroundSize = 'contain';
+            elt3.style.backgroundRepeat = 'no-repeat';
+            elt3.style.width = '24px';
+            elt3.style.height = '24px';
+            elt3.style.opacity = '0.4';
+            elt3.disabled = true;
+            animBtn3 = elt3;
+
+            const elt4 = ui.addButton('', 'Toggle Global Animation', function () {
+                ui.actions.get('toggleGlobalAnimation').funct();
+                if (animBtn4) animBtn4.style.opacity = tamAnimationEnabled ? '1' : '0.4';
+            }, ui.toolbar.container);
+            elt4.style.backgroundImage = 'url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPScyNCcgaGVpZ2h0PScyNCcgdmlld0JveD0nMCAwIDI0IDI0Jz48bGluZSB4MT0nMicgeTE9JzEyJyB4Mj0nMjInIHkyPScxMicgc3Ryb2tlPScjMDAwJyBzdHJva2Utd2lkdGg9JzInLz48Y2lyY2xlIGN4PSc3JyBjeT0nMTInIHI9JzInIGZpbGw9JyMwMDAnLz48Y2lyY2xlIGN4PScxMicgY3k9JzEyJyByPScyJyBmaWxsPScjMDAwJy8+PGNpcmNsZSBjeD0nMTcnIGN5PScxMicgcj0nMicgZmlsbD0nIzAwMCcvPjwvc3ZnPg==")';
+            elt4.style.backgroundPosition = 'center';
+            elt4.style.backgroundSize = 'contain';
+            elt4.style.backgroundRepeat = 'no-repeat';
+            elt4.style.width = '24px';
+            elt4.style.height = '24px';
+            elt4.style.opacity = '1';
+            elt4.style.outline = '2px solid #1e88e5';
+            animBtn4 = elt4;
         } else if (typeof ui.toolbar.addButton === 'function') {
             // VSCode version: ui.toolbar.addButton returns button element
             // Add buttons and then manually set their background images
@@ -1078,7 +1326,55 @@ Draw.loadPlugin(function (ui) {
                 btn2.style.backgroundSize = 'contain';
                 btn2.style.backgroundRepeat = 'no-repeat';
             }
+
+            const btn3 = ui.toolbar.addButton(null, 'Toggle Edge Animation', function (evt) {
+                ui.actions.get('toggleEdgeAnimation').funct();
+            });
+            if (btn3) {
+                btn3.style.backgroundImage = 'url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPScyNCcgaGVpZ2h0PScyNCcgdmlld0JveD0nMCAwIDI0IDI0Jz48bGluZSB4MT0nMicgeTE9JzEyJyB4Mj0nMjInIHkyPScxMicgc3Ryb2tlPScjMDAwJyBzdHJva2Utd2lkdGg9JzInLz48Y2lyY2xlIGN4PScxMicgY3k9JzEyJyByPSczJyBmaWxsPScjMDAwJy8+PC9zdmc+")';
+                btn3.style.backgroundPosition = 'center';
+                btn3.style.backgroundSize = 'contain';
+                btn3.style.backgroundRepeat = 'no-repeat';
+                btn3.style.opacity = '0.4';
+                btn3.disabled = true;
+                animBtn3 = btn3;
+            }
+
+            const btn4 = ui.toolbar.addButton(null, 'Toggle Global Animation', function (evt) {
+                ui.actions.get('toggleGlobalAnimation').funct();
+                if (btn4) btn4.style.opacity = tamAnimationEnabled ? '1' : '0.4';
+            });
+            if (btn4) {
+                btn4.style.backgroundImage = 'url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPScyNCcgaGVpZ2h0PScyNCcgdmlld0JveD0nMCAwIDI0IDI0Jz48bGluZSB4MT0nMicgeTE9JzEyJyB4Mj0nMjInIHkyPScxMicgc3Ryb2tlPScjMDAwJyBzdHJva2Utd2lkdGg9JzInLz48Y2lyY2xlIGN4PSc3JyBjeT0nMTInIHI9JzInIGZpbGw9JyMwMDAnLz48Y2lyY2xlIGN4PScxMicgY3k9JzEyJyByPScyJyBmaWxsPScjMDAwJy8+PGNpcmNsZSBjeD0nMTcnIGN5PScxMicgcj0nMicgZmlsbD0nIzAwMCcvPjwvc3ZnPg==")';
+                btn4.style.backgroundPosition = 'center';
+                btn4.style.backgroundSize = 'contain';
+                btn4.style.backgroundRepeat = 'no-repeat';
+                btn4.style.opacity = '1';
+                btn4.style.outline = '2px solid #1e88e5';
+            }
         }
+
+        // Selection listener: enable/disable edge animation button
+        const graph = ui.editor.graph;
+        graph.getSelectionModel().addListener(mxEvent.CHANGE, function () {
+            const selectedEdges = graph.getSelectionCells().filter(cell => cell.edge);
+            const hasEdge = selectedEdges.length > 0;
+            const anyAnimated = hasEdge && selectedEdges.some(cell =>
+                mxUtils.getValue(tamUtils.getStyleObject(cell.style), 'animated', 'none') !== 'none'
+            );
+            if (animBtn3) {
+                animBtn3.disabled = !hasEdge;
+                animBtn3.style.opacity = hasEdge ? '1' : '0.4';
+                animBtn3.style.outline = anyAnimated ? '2px solid #1e88e5' : 'none';
+            }
+        });
+
+        updateGlobalAnimBtn = function () {
+            if (animBtn4) {
+                animBtn4.style.opacity = tamAnimationEnabled ? '1' : '0.4';
+                animBtn4.style.outline = tamAnimationEnabled ? '2px solid #1e88e5' : 'none';
+            }
+        };
     }
 
     // Get the Graph constructor - try both global Graph and ui.editor.graph.constructor
