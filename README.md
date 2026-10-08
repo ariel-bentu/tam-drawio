@@ -19,33 +19,38 @@ This plugin adds some components to draw.io, which cover the common components u
 
 ### Install in draw.io desktop
 
-**Note:** Since draw.io v19.0.3, in the desktop (Electron) version of draw.io, plugins are disabled by default, and since v20,  also are blocked from `extra->configurations` menu. To allow plugins, one needs to pass a command-line argument to draw.io `--enable-plugins`.
+**Note:** Since draw.io Desktop v31.5.3, external plugins are fully blocked — the `--enable-plugins` flag no longer exists and the Plugins dialog rejects user files. The only supported path is to inject the plugin directly into the app bundle.
 
- For Mac users, there are three possible methods:
- 1. Easiest, but requires downloading an unsigned app
-    - download [this tar](./launchDrawioWithPlugins.tar)
-    - extract it locally -> you will now see a macOS `app`
-    - drag and drop it onto your 'Applications' folder
-    - first time, right-click on it and select `Open` - you'll be prompted to Open an app with unverified developer. Choose `Open` - That's it.
-    - Next time, you can simple double click normally to open the app.
-    - Note: The tar file contains 3 files: icon, plist.info, script to run the original draw.io
- 2. Easy, but not perfect:
-    - Open “Script Editor”
-    - Paste this code: 
-    ```
-       do shell script "\"/Applications/draw.io.app/Contents/MacOS/draw.io\" --enable-plugins"
-       quit
-    ```
-    - Save… -> choose “file format” to be “application”, give it a name: e.g. `tamDrawIO`
-    - Now you have an application with your chosen name.
- 3. Harder, but then seemless experience: [see here](./mac-pass-arg.md)
+#### Mac — automated install script (recommended)
 
- After you enabled plugins, follow these steps:
- - Goto Menu `Extras->Plugins...`
- - Press `Add`
- - browse and select `tam-drawio.js`
- - Press `Apply`
- - Restart Drawio
+Run the install script once from the cloned repo:
+
+```bash
+bash install-mac.sh
+```
+
+That's it. Open draw.io normally — no special launcher or command-line arguments. The script:
+1. Extracts the app bundle's `app.asar`
+2. Adds `tam-drawio.js` to the built-in plugins folder inside it
+3. Patches the app's preload to register the plugin in draw.io's settings automatically
+4. Removes the app's Apple code signature and re-registers it with macOS
+
+> **Security note:** Removing the code signature means draw.io will run as an **unsigned application** after installation. Apple's notarization and code-signing verification no longer apply to this install. The tam-drawio project and its contributors accept no liability for issues arising from this modification, including security vulnerabilities, data loss, or app instability. Proceed only if you understand and accept these terms. The script will ask you to confirm before making any changes.
+
+> **After a draw.io update:** the auto-updater replaces `app.asar`, removing the plugin. Re-run `install-mac.sh` after each draw.io update. A background watcher is installed automatically and will prompt you when this happens.
+
+> **Uninstalling:** run `bash uninstall-mac.sh` to remove the plugin from the app bundle and unload the update watcher. If you delete draw.io without uninstalling first, run the uninstall script afterwards anyway — it will skip the asar step and still clean up the watcher.
+
+#### Windows / Linux
+
+As of draw.io Desktop v31.5.3 the `--enable-plugins` flag is removed on all platforms. A Windows/Linux install script equivalent to the Mac one above is not yet included here — contributions welcome. As a workaround, an older release of draw.io Desktop (pre-v31) with `--enable-plugins` support can be downloaded from the [releases page](https://github.com/jgraph/drawio-desktop/releases).
+
+If you are on an older version where `--enable-plugins` is available:
+- Goto Menu `Extras->Plugins...`
+- Press `Add`
+- Browse and select `tam-drawio.js`
+- Press `Apply`
+- Restart draw.io
 
 
 > in some cases if you re-install the plugin, you get the error "File Already Exists". then go to the `<appData>/draw.io/plugins` and remove the file manually before re-installing.
@@ -61,18 +66,6 @@ This plugin adds some components to draw.io, which cover the common components u
 #### Note for Draw.io 21.3.0 release and after!!!
 - The Sidepanel does not show the TAM elements in Dark mode.
 - Select Light mode and restart.
-
-#### Note for Draw.io 24 release and after!!!
-- Plugin often is not loaded 
-- Workaround:
-  - open drawio
-  - select menu: `Help->Open Developer Tools`
-  - go "Application" tab
-  - under `Local storage->file://`
-  - look for a key `.drawio-config`
-  - edit the value, changing the `plugins` array. Change the `tam-drawio.js` from having a full path to only file name (`tam-drawio.js`).
-  - restart Drawio
-
 
 ### Install in VSCode
 - Assuming you have Drawio vs-code extension. If not: [Get It](https://marketplace.visualstudio.com/items?itemName=hediet.vscode-drawio)

@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git checkout:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git merge:*)",
+      "Bash(git branch:*)",
+      "Bash(git -C /Users/i022021/dev/tam-drawio add docs/superpowers/specs/2026-05-17-flow-animation-design.md)",
+      "Bash(git -C /Users/i022021/dev/tam-drawio commit -m \"Add flow animation design spec\")",
+      "Bash(node *)",
+      "Read(//private/tmp/**)",
+      "Bash(npx --yes asar extract /Applications/draw.io.app/Contents/Resources/app.asar drawio-app)"
+    ]
+  }
+}
