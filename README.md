@@ -19,27 +19,35 @@ This plugin adds some components to draw.io, which cover the common components u
 
 ### Install in draw.io desktop
 
-**Note:** Since draw.io Desktop v31.5.3, external plugins are fully blocked — the `--enable-plugins` flag no longer exists and the Plugins dialog rejects user files. The only supported path is to inject the plugin directly into the app bundle.
+Since draw.io Desktop v31.5.3, the Plugins dialog and `--enable-plugins` flag are fully removed. The only way to use this plugin is to patch it directly into the draw.io app bundle using the script below.
 
-#### Mac — automated install script (recommended)
+**Step 1 — Install draw.io Desktop** (if you haven't already):
+- Mac: `brew install --cask drawio` or download from [get.diagrams.net](https://get.diagrams.net)
+- Windows / Linux: download from [get.diagrams.net](https://get.diagrams.net)
 
-Run the install script once from the cloned repo:
+**Step 2 — Patch the app bundle** using the platform-specific instructions below.
+
+#### Mac — automated patch script (recommended)
+
+Run the patch script once from the cloned repo:
 
 ```bash
-bash install-mac.sh
+bash install-tam-mac.sh
 ```
 
-That's it. Open draw.io normally — no special launcher or command-line arguments. The script:
-1. Extracts the app bundle's `app.asar`
-2. Adds `tam-drawio.js` to the built-in plugins folder inside it
-3. Patches the app's preload to register the plugin in draw.io's settings automatically
-4. Removes the app's Apple code signature and re-registers it with macOS
+That's it. Open draw.io normally — no special launcher or command-line arguments. The script patches the installed draw.io app by:
+1. Extracting the app bundle's `app.asar`
+2. Adding `tam-drawio.js` to the built-in plugins folder inside it
+3. Patching the app's preload to register the plugin in draw.io's settings automatically
+4. Re-signing the app with a self-owned code-signing certificate stored in your login keychain
 
-> **Security note:** Removing the code signature means draw.io will run as an **unsigned application** after installation. Apple's notarization and code-signing verification no longer apply to this install. The tam-drawio project and its contributors accept no liability for issues arising from this modification, including security vulnerabilities, data loss, or app instability. Proceed only if you understand and accept these terms. The script will ask you to confirm before making any changes.
+> **Security note:** The script re-signs draw.io with a locally-trusted, self-owned certificate. Apple's original notarisation no longer applies, but the bundle is protected against unauthorised modifications — any change to the app after signing will break the signature. The certificate is created on first run and reused on subsequent installs. The tam-drawio project and its contributors accept no liability for issues arising from this modification, including security vulnerabilities, data loss, or app instability. The script will ask you to confirm before making any changes.
 
-> **After a draw.io update:** the auto-updater replaces `app.asar`, removing the plugin. Re-run `install-mac.sh` after each draw.io update. A background watcher is installed automatically and will prompt you when this happens.
+> **Prerequisites:** macOS seals signed app bundles, so the script requires `sudo` and your terminal app must have **App Management** permission (`System Settings → Privacy & Security → App Management`). You will also be prompted once to allow keychain access for the signing certificate.
 
-> **Uninstalling:** run `bash uninstall-mac.sh` to remove the plugin from the app bundle and unload the update watcher. If you delete draw.io without uninstalling first, run the uninstall script afterwards anyway — it will skip the asar step and still clean up the watcher.
+> **After a draw.io update:** the auto-updater replaces `app.asar`, removing the plugin. Re-run `install-tam-mac.sh` after each draw.io update. A background watcher is installed automatically and will prompt you when this happens.
+
+> **Uninstalling:** run `bash uninstall-tam-mac.sh` to remove the plugin from the app bundle and unload the update watcher. If you delete draw.io without uninstalling first, run the uninstall script afterwards anyway — it will skip the asar step and still clean up the watcher.
 
 #### Windows / Linux
 

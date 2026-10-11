@@ -12,15 +12,21 @@ TARGET_USER="${SUDO_USER:-$USER}"
 TARGET_HOME=$(eval echo "~$TARGET_USER")
 SUPPORT_DIR="$TARGET_HOME/Library/Application Support/tam-drawio"
 PLIST="$TARGET_HOME/Library/LaunchAgents/io.tam-drawio.watcher.plist"
+CERT_NAME="TAM draw.io Plugin Signing"
+CERT_KEYCHAIN="$TARGET_HOME/Library/Keychains/login.keychain-db"
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'
 info()  { echo -e "${GREEN}▸${NC} $*"; }
 warn()  { echo -e "${YELLOW}⚠${NC}  $*"; }
 error() { echo -e "${RED}✖${NC}  $*" >&2; }
 
-# If draw.io exists and its asar is root-owned, we need sudo for the asar cleanup.
+# macOS seals signed app bundles — sudo is required to modify them.
 if [ -d "$DRAWIO_APP" ] && [ -f "$ASAR" ] && [ ! -w "$ASAR" ] && [ "$EUID" -ne 0 ]; then
-    warn "draw.io.app is owned by root — re-running with sudo..."
+    echo ""
+    warn "draw.io.app requires elevated access to modify."
+    echo "  macOS seals signed app bundles, blocking writes even to user-owned files."
+    echo "  Re-running with sudo..."
+    echo ""
     exec sudo bash "$0" "$@"
 fi
 
@@ -59,6 +65,21 @@ else
         sleep 2
     fi
 
+    info "Removing Apple code signature..."
+    if ! rm -rf "$DRAWIO_APP/Contents/_CodeSignature" 2>/dev/null; then
+        echo ""
+        error "Cannot modify draw.io.app — macOS App Management permission is required."
+        echo ""
+        echo "  Grant your terminal app permission in:"
+        echo "    System Settings → Privacy & Security → App Management"
+        echo ""
+        echo "  Then re-run this script."
+        exit 1
+    fi
+
+    info "Clearing extended attributes (quarantine / Gatekeeper)..."
+    xattr -cr "$DRAWIO_APP" 2>/dev/null || true
+
     TMPDIR="$(mktemp -d)"
     trap 'rm -rf "$TMPDIR"' EXIT
 
@@ -88,7 +109,22 @@ console.log('Removed tam-drawio patch from electron-preload.js');
 JSEOF
 
     info "Repacking app.asar..."
-    npx @electron/asar pack "$TMPDIR/asar" "$ASAR"
+    npx @electron/asar pack "$TMPDIR/asar" "$TMPDIR/app.asar"
+    cp "$TMPDIR/app.asar" "$ASAR"
+    chown "$TARGET_USER" "$ASAR"
+
+    # Re-sign so draw.io remains usable without the plugin
+    info "Re-signing app with self-owned certificate..."
+    if [ "$EUID" -eq 0 ] && [ -n "${SUDO_USER:-}" ]; then
+        RUN_CODESIGN=(sudo -u "$TARGET_USER" codesign --force --deep --sign "$CERT_NAME" --timestamp=none "$DRAWIO_APP")
+    else
+        RUN_CODESIGN=(codesign --force --deep --sign "$CERT_NAME" --timestamp=none "$DRAWIO_APP")
+    fi
+    if "${RUN_CODESIGN[@]}" 2>&1; then
+        info "App re-signed."
+    else
+        warn "Re-signing failed — draw.io will run unsigned. Reinstall draw.io for a clean Apple-signed copy."
+    fi
 
     info "Re-registering app with LaunchServices..."
     "$LSREGISTER" -f "$DRAWIO_APP" 2>/dev/null || true
@@ -100,7 +136,9 @@ echo ""
 echo -e "${GREEN}✓ tam-drawio plugin uninstalled.${NC}"
 echo ""
 echo "  The plugin and preload patch have been removed from draw.io."
+echo "  The app has been re-signed and is ready to use."
 echo "  The update watcher has been removed."
-echo "  Note: the original Apple code signature cannot be restored."
-echo "  Reinstall draw.io to get a fully signed copy."
+echo ""
+echo "  To fully restore draw.io to its original Apple-signed state,"
+echo "  reinstall it: brew reinstall --cask drawio"
 echo ""

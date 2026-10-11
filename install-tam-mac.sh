@@ -25,15 +25,98 @@ LAUNCH_AGENTS_DIR="$TARGET_HOME/Library/LaunchAgents"
 CHECK_SCRIPT="$SUPPORT_DIR/check-plugin.sh"
 PLIST="$LAUNCH_AGENTS_DIR/io.tam-drawio.watcher.plist"
 
+CERT_NAME="TAM draw.io Plugin Signing"
+CERT_KEYCHAIN="$TARGET_HOME/Library/Keychains/login.keychain-db"
+
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'
 
 info()  { echo -e "${GREEN}▸${NC} $*"; }
 warn()  { echo -e "${YELLOW}⚠${NC}  $*"; }
 error() { echo -e "${RED}✖${NC}  $*" >&2; }
 
-# Check if disclaimer was already accepted (passed through from first run before sudo re-exec)
-ACCEPTED=0
-for arg in "$@"; do [ "$arg" = "--accepted" ] && ACCEPTED=1; done
+# Flags passed through sudo re-exec so we don't repeat first-time setup
+ACCEPTED=0; CERT_READY=0
+for arg in "$@"; do
+    [ "$arg" = "--accepted"  ] && ACCEPTED=1
+    [ "$arg" = "--cert-ready" ] && CERT_READY=1
+done
+
+# ── Self-owned signing certificate ────────────────────────────────────────────
+# Creates a 10-year RSA-4096 code-signing cert in the user's login keychain the
+# first time, then reuses it on subsequent installs.  Must be called as the
+# real (non-root) user so the private key lands in their keychain.
+
+ensure_signing_cert() {
+    # Check for a usable code-signing identity (cert with codeSigning EKU)
+    if security find-identity -v -p codesigning "$CERT_KEYCHAIN" 2>/dev/null \
+            | grep -q "\"$CERT_NAME\""; then
+        info "Reusing existing signing certificate."
+        return 0
+    fi
+
+    # Cert may exist but lack the codeSigning EKU — remove it before recreating
+    if security find-certificate -c "$CERT_NAME" "$CERT_KEYCHAIN" &>/dev/null; then
+        info "Existing certificate cannot sign code — recreating with correct extensions..."
+        security delete-certificate -c "$CERT_NAME" "$CERT_KEYCHAIN" 2>/dev/null || true
+    fi
+
+    info "Creating self-owned signing certificate (first-time setup)..."
+    echo ""
+    echo "  A private certificate named \"$CERT_NAME\" will be created"
+    echo "  and added to your login keychain.  macOS will ask for your"
+    echo "  login password to authorise trusting it for code signing."
+    echo ""
+
+    local CERT_DIR
+    CERT_DIR="$(mktemp -d)"
+    trap 'rm -rf "$CERT_DIR"' RETURN
+
+    # Config file ensures the certificate carries the Code Signing EKU that
+    # codesign requires.  Without it codesign refuses the identity entirely.
+    cat > "$CERT_DIR/openssl.conf" << 'CONF'
+[req]
+distinguished_name = dn
+x509_extensions = ext
+prompt = no
+
+[dn]
+CN = TAM draw.io Plugin Signing
+
+[ext]
+keyUsage = critical,digitalSignature
+extendedKeyUsage = codeSigning
+basicConstraints = critical,CA:FALSE
+subjectKeyIdentifier = hash
+CONF
+
+    openssl req -x509 -newkey rsa:4096 \
+        -keyout "$CERT_DIR/signing.key" \
+        -out    "$CERT_DIR/signing.crt" \
+        -days 3650 -nodes \
+        -config "$CERT_DIR/openssl.conf" 2>/dev/null \
+        || { error "Failed to generate certificate."; exit 1; }
+
+    # Import cert and private key as PEM — avoids PKCS12 encryption
+    # incompatibilities between OpenSSL 3.x and the macOS security tool.
+    security import "$CERT_DIR/signing.crt" \
+        -k "$CERT_KEYCHAIN" \
+        || { error "Failed to import certificate into keychain."; exit 1; }
+
+    # Import the private key; grant /usr/bin/codesign access without future prompts
+    security import "$CERT_DIR/signing.key" \
+        -k "$CERT_KEYCHAIN" \
+        -T /usr/bin/codesign \
+        || { error "Failed to import private key into keychain."; exit 1; }
+
+    # Trust the certificate for code signing (prompts for login password)
+    security add-trusted-cert \
+        -r trustRoot \
+        -k "$CERT_KEYCHAIN" \
+        "$CERT_DIR/signing.crt" \
+        || { error "Failed to trust certificate. Run the script again to retry."; exit 1; }
+
+    info "Signing certificate created and trusted."
+}
 
 # ── Disclaimer ───────────────────────────────────────────────────────────────
 
@@ -43,12 +126,15 @@ if [ "$ACCEPTED" -eq 0 ]; then
     echo "  This script modifies the draw.io Desktop application bundle by:"
     echo "    • Injecting the tam-drawio plugin into its built-in plugins folder"
     echo "    • Patching its startup code to load the plugin automatically"
-    echo "    • Removing the app's Apple code signature"
+    echo "    • Re-signing the app with a self-owned certificate"
     echo ""
-    echo "  As a result, draw.io will run as an unsigned application."
-    echo "  Apple's code-signing verification and notarization will no longer"
-    echo "  apply to this installation. This reduces the security guarantees"
-    echo "  that macOS normally provides for this app."
+    echo "  On first run a private code-signing certificate is created and added"
+    echo "  to your login keychain.  The app is then re-signed with it, so the"
+    echo "  bundle is protected against further unauthorised modifications."
+    echo ""
+    echo "  The app will NOT be notarised by Apple, so macOS Gatekeeper will"
+    echo "  accept it only on this machine (where the certificate is trusted)."
+    echo "  Apple's own notarisation guarantees no longer apply."
     echo ""
     echo "  The tam-drawio project and its contributors accept no liability"
     echo "  for any issues arising from this modification, including but not"
@@ -92,6 +178,12 @@ if pgrep -x "draw.io" &>/dev/null; then
     sleep 2
 fi
 
+# ── Signing certificate (must be set up as the real user before sudo) ────────
+
+if [ "$CERT_READY" -eq 0 ] && [ "$EUID" -ne 0 ]; then
+    ensure_signing_cert
+fi
+
 # ── Take ownership if needed ──────────────────────────────────────────────────
 # If draw.io was installed from the official DMG/website it is root-owned.
 # Homebrew Cask (brew install --cask drawio) installs user-owned — no prompt.
@@ -99,26 +191,32 @@ fi
 if [ ! -w "$ASAR" ]; then
     if [ "$EUID" -ne 0 ]; then
         echo ""
-        warn "draw.io.app is owned by root (installed from DMG/website)."
-        echo "  Re-running with sudo to gain write access..."
-        echo "  Tip: install draw.io via Homebrew to avoid this entirely:"
-        echo "       brew install --cask drawio"
+        warn "draw.io.app requires elevated access to modify."
+        echo "  macOS seals signed app bundles, blocking writes even to user-owned files."
+        echo "  Re-running with sudo to remove the seal before patching..."
         echo ""
-        exec sudo bash "$0" "$@" --accepted
+        exec sudo bash "$0" "$@" --accepted --cert-ready
     fi
 fi
 
-# ── Remove code signature & clear Gatekeeper attributes ──────────────────────
-# Leave the app unsigned — an unsigned app is handled more leniently by
-# Gatekeeper than one with an ad-hoc signature that fails notarization.
-# Without any signature the Hardened Runtime is not enforced, so Electron's
-# V8 JIT works fine without entitlements.
+# ── Remove Apple code signature & clear Gatekeeper attributes ────────────────
+# Strip the original signature so we can re-sign with our own cert below.
+# The quarantine xattr is cleared so Gatekeeper doesn't block first launch.
 
-info "Removing code signature..."
-rm -rf "$DRAWIO_APP/Contents/_CodeSignature"
+info "Removing Apple code signature..."
+if ! rm -rf "$DRAWIO_APP/Contents/_CodeSignature" 2>/dev/null; then
+    echo ""
+    error "Cannot modify draw.io.app — macOS App Management permission is required."
+    echo ""
+    echo "  Grant your terminal app permission in:"
+    echo "    System Settings → Privacy & Security → App Management"
+    echo ""
+    echo "  Then re-run this script."
+    exit 1
+fi
 
 info "Clearing extended attributes (quarantine / Gatekeeper)..."
-xattr -cr "$DRAWIO_APP"
+xattr -cr "$DRAWIO_APP" 2>/dev/null || true
 
 # ── Patch app.asar ────────────────────────────────────────────────────────────
 
@@ -168,7 +266,37 @@ console.log('Patched electron-preload.js');
 JSEOF
 
 info "Repacking app.asar..."
-npx @electron/asar pack "$TMPDIR/asar" "$ASAR"
+npx @electron/asar pack "$TMPDIR/asar" "$TMPDIR/app.asar"
+# Overwrite the existing ASAR in-place.
+# App Management permits overwriting existing files but blocks creating new ones,
+# so we must NOT delete the ASAR before copying.  The code-signing xattrs were
+# cleared by xattr -cr above, so the file is now writable.
+cp "$TMPDIR/app.asar" "$ASAR"
+# Restore ownership so the real user can sign the bundle
+chown "$TARGET_USER" "$ASAR"
+
+# ── Re-sign app with self-owned certificate ───────────────────────────────────
+# codesign without --options runtime keeps Hardened Runtime off, so Electron's
+# V8 JIT works fine without entitlements.
+# When running as root (DMG install), we point --keychain at the real user's
+# login keychain where the private key was imported with -T /usr/bin/codesign.
+
+info "Re-signing app with self-owned certificate..."
+# codesign must run as the real user so it can reach their login keychain.
+# The user owns Contents/ so they can create _CodeSignature/ there.
+if [ "$EUID" -eq 0 ] && [ -n "${SUDO_USER:-}" ]; then
+    CODESIGN_USER="$TARGET_USER"
+    RUN_CODESIGN=(sudo -u "$CODESIGN_USER" codesign --force --deep --sign "$CERT_NAME" --timestamp=none "$DRAWIO_APP")
+else
+    RUN_CODESIGN=(codesign --force --deep --sign "$CERT_NAME" --timestamp=none "$DRAWIO_APP")
+fi
+
+if "${RUN_CODESIGN[@]}" 2>&1; then
+    info "App re-signed with \"$CERT_NAME\"."
+else
+    warn "Re-signing failed — the plugin is installed but the app runs unsigned."
+    warn "To re-sign manually: codesign --force --deep --sign \"$CERT_NAME\" \"$DRAWIO_APP\""
+fi
 
 # ── Re-register with LaunchServices ──────────────────────────────────────────
 
@@ -183,14 +311,14 @@ info "Installing update watcher..."
 
 mkdir -p "$SUPPORT_DIR" "$LAUNCH_AGENTS_DIR"
 
-# Write the check script (path to install-mac.sh baked in at install time)
+# Write the check script (path to install-tam-mac.sh baked in at install time)
 cat > "$CHECK_SCRIPT" << CHECKEOF
 #!/bin/bash
 # Checks whether the tam-drawio patch is still present after a draw.io update.
 # Triggered automatically by the io.tam-drawio.watcher LaunchAgent.
 
 ASAR="/Applications/draw.io.app/Contents/Resources/app.asar"
-INSTALL_SCRIPT="$SCRIPT_DIR/install-mac.sh"
+INSTALL_SCRIPT="$SCRIPT_DIR/install-tam-mac.sh"
 
 # Wait briefly for the update write to complete
 sleep 3
@@ -204,7 +332,7 @@ fi
 
 # Patch is gone — show dialog
 osascript << 'APPLESCRIPT'
-set installScript to "$SCRIPT_DIR/install-mac.sh"
+set installScript to "$SCRIPT_DIR/install-tam-mac.sh"
 set dlg to display dialog "draw.io was updated and the TAM plugin needs to be reinstalled." & return & return & "Click \"Reinstall Now\" to restore it." ¬
     with title "TAM Plugin" ¬
     buttons {"Later", "Reinstall Now"} ¬
@@ -275,6 +403,7 @@ echo ""
 echo "  Open draw.io normally — the plugin loads automatically."
 echo "  No special launcher or command-line arguments needed."
 echo ""
-echo "  A background watcher will prompt you to reinstall"
-echo "  if draw.io auto-updates and removes the plugin."
+echo "  The app is signed with your self-owned certificate."
+echo "  If draw.io auto-updates, a background watcher will prompt"
+echo "  you to reinstall the plugin (and re-sign)."
 echo ""
