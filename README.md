@@ -19,7 +19,7 @@ This plugin adds some components to draw.io, which cover the common components u
 
 ### Install in draw.io desktop
 
-Since draw.io Desktop v31.5.3, the Plugins dialog and `--enable-plugins` flag are fully removed. The only way to use this plugin is to patch it directly into the draw.io app bundle using the script below.
+> *Note:* Starting in draw.io Desktop v31.5.3, it is no longer possible to load external plugins. The Plugins dialog and `--enable-plugins` flag are fully removed. The only way to use this plugin is to patch the plugin into a file that draw.io Desktop load on startup (see Step 2 below).
 
 **Step 1 — Install draw.io Desktop** (if you haven't already):
 - Mac: `brew install --cask drawio` or download from [get.diagrams.net](https://get.diagrams.net)
@@ -41,7 +41,7 @@ That's it. Open draw.io normally — no special launcher or command-line argumen
 3. Patching the app's preload to register the plugin in draw.io's settings automatically
 4. Re-signing the app with a self-owned code-signing certificate stored in your login keychain
 
-> **Security note:** The script re-signs draw.io with a locally-trusted, self-owned certificate. Apple's original notarisation no longer applies, but the bundle is protected against unauthorised modifications — any change to the app after signing will break the signature. The certificate is created on first run and reused on subsequent installs. The tam-drawio project and its contributors accept no liability for issues arising from this modification, including security vulnerabilities, data loss, or app instability. The script will ask you to confirm before making any changes.
+> **Security note:** The script re-signs draw.io with a locally-trusted, self-owned certificate. Apple's original notarization no longer applies, but the bundle is protected against unauthorized modifications — any change to the app after signing will break the signature. The certificate is created on first run and reused on subsequent installs. The tam-drawio project and its contributors accept no liability for issues arising from this modification, including security vulnerabilities, data loss, or app instability. The script will ask you to confirm before making any changes.
 
 > **Prerequisites:** macOS seals signed app bundles, so the script requires `sudo` and your terminal app must have **App Management** permission (`System Settings → Privacy & Security → App Management`). You will also be prompted once to allow keychain access for the signing certificate.
 
@@ -49,9 +49,33 @@ That's it. Open draw.io normally — no special launcher or command-line argumen
 
 > **Uninstalling:** run `bash uninstall-tam-mac.sh` to remove the plugin from the app bundle and unload the update watcher. If you delete draw.io without uninstalling first, run the uninstall script afterwards anyway — it will skip the asar step and still clean up the watcher.
 
-#### Windows / Linux
+#### Windows
 
-As of draw.io Desktop v31.5.3 the `--enable-plugins` flag is removed on all platforms. A Windows/Linux install script equivalent to the Mac one above is not yet included here — contributions welcome. As a workaround, an older release of draw.io Desktop (pre-v31) with `--enable-plugins` support can be downloaded from the [releases page](https://github.com/jgraph/drawio-desktop/releases).
+The script detects standard per-machine and per-user installations. If draw.io is installed in a custom or portable location, pass the full path to its `resources\app.asar` with `-AppAsarPath`.
+
+**Notes:**
+* Install Node.js 22.12 or later (required to run `asar`).
+* Close draw.io before running the script.
+* Run the script from the root of this cloned repo.
+* For draw.io installations under `Program Files`, run PowerShell as Administrator.
+* Re-run the installer after draw.io updates, because the updates replace the patched file.
+* Microsoft Store installations are *not* supported by this script.
+
+Install script:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\install-tam-windows.ps1
+```
+
+Uninstall script:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\install-tam-windows.ps1 -Uninstall
+```
+
+#### Linux
+
+An installer equivalent is not yet included for Linux. Older draw.io Desktop releases (pre-v31) with `--enable-plugins` support can be downloaded from the [releases page](https://github.com/jgraph/drawio-desktop/releases).
 
 If you are on an older version where `--enable-plugins` is available:
 - Goto Menu `Extras->Plugins...`
