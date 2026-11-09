@@ -412,7 +412,10 @@ Draw.loadPlugin(function (ui) {
             c.setShadow(false);
 
             if (pts.length < 2) { return; }
-            const isVertical = mxUtils.getValue(this.style, 'vertical', false);
+            const isVertical = resolveVertical(this.style, pts);
+            // 'auto' channels derive sign position/direction from the segment just like L-shapes,
+            // but at any point count (incl. a straight 2-point run), not only routed >2-point ones.
+            const autoOrient = isVertical !== 'both' && mxUtils.getValue(this.style, 'vertical', false) === 'auto';
 
             const prev = c.pointerEventsValue;
             c.pointerEventsValue = 'stroke';
@@ -442,7 +445,7 @@ Draw.loadPlugin(function (ui) {
                     p1 = p0 + 1;
                 }
                 let midPoint = getEdgeMidPoint(pts, isVertical);
-                vertLine = (pts.length === 2) ? isVertical : !isVertical;
+                vertLine = Math.abs(pts[p1].x - pts[p0].x) < Math.abs(pts[p1].y - pts[p0].y);
                 x = midPoint.x;
                 y = midPoint.y;
             } else {
@@ -530,7 +533,7 @@ Draw.loadPlugin(function (ui) {
             // For L-shapes (isVertical='both'), the user's chosen direction needs to be adapted
             // to the current segment orientation. If they choose south (down), it should point
             // down when on a vertical segment, but should point right when on a horizontal segment.
-            if (pts.length > 2 && isVertical === 'both' && useSignDirection !== 'none' && useSignDirection !== 'both') {
+            if ((isVertical === 'both' || autoOrient) && useSignDirection !== 'none' && useSignDirection !== 'both') {
                 const isDirectionVertical = (useSignDirection === 'north' || useSignDirection === 'south');
                 const isSegmentVertical = vertLine;
 
@@ -548,7 +551,7 @@ Draw.loadPlugin(function (ui) {
             // Adjust the location to the position of the circle
             // For S-shapes: use original p0 % 2 === 0 logic (works correctly for alternating segments)
             // For L-shapes (isVertical='both'): adjust position based on current segment orientation
-            if (pts.length > 2 && isVertical === 'both') {
+            if (isVertical === 'both' || autoOrient) {
                 // For vertical segments, position should be 'left' or 'right'
                 // For horizontal segments, position should be 'up' or 'down'
                 const basePosition = mxUtils.getValue(this.style, 'useSignPosition', 'up');
@@ -869,6 +872,7 @@ Draw.loadPlugin(function (ui) {
 
     ui.sidebar.setCurrentSearchEntryLibrary('tam', 'tamBlock');
     ui.sidebar.addPalette('tamBlock', 'TAM / Block', true, function (content) {
+        content.appendChild(ui.sidebar.createEdgeTemplate('shape=useedge;vertical=auto;edgeStyle=orthogonalEdgeStyle;endArrow=none;useSignPosition=left;useSignDirection=south;', 160, 160, '', 'Channel'));
         content.appendChild(ui.sidebar.createEdgeTemplate('shape=useedge;vertical=true;edgeStyle=none;endArrow=none;useSignPosition=left;useSignDirection=south;', 0, 160, '', 'Vertical Channel'));
         content.appendChild(ui.sidebar.createEdgeTemplate('shape=useedge;endArrow=none;edgeStyle=none;useSignPosition=up;useSignDirection=east;', 160, 0, '', 'Horizontal Channel'));
         content.appendChild(ui.sidebar.createEdgeTemplate('rounded=1;shape=useedge;vertical=true;edgeStyle=elbowEdgeStyle;elbow=vertical;endArrow=none;useSignPosition=up;useSignDirection=east;', 70, 160, '', 'Vertical S-Channel'));
@@ -978,18 +982,29 @@ Draw.loadPlugin(function (ui) {
 
     mxResources.parse('flipUse=Flip Use Direction');
 
-    function getEdgeMidPoint(pts, isVertical) {
-        let p0 = 0, p1 = 1;
-        let vertLine = (pts.length === 2) ? isVertical : !isVertical;
+    // Smart channel: resolve `vertical` from actual geometry when style says 'auto'.
+    // 2 points -> vertical when taller than wide; routed (3+ points) -> 'both' (L behavior).
+    function resolveVertical(style, pts) {
+        const v = mxUtils.getValue(style, 'vertical', false);
+        if (v !== 'auto') return v;
+        if (!pts || pts.length !== 2) return 'both';
+        const dx = Math.abs(pts[pts.length - 1].x - pts[0].x);
+        const dy = Math.abs(pts[pts.length - 1].y - pts[0].y);
+        return dy > dx;
+    }
 
+    // Midpoint of the segment the use-circle sits on. Orientation is read from the
+    // segment's own geometry by callers, so this stays correct for L/auto routes too.
+    function getEdgeMidPoint(pts) {
+        let p0 = 0, p1 = 1;
         if (pts.length > 2) {
             p0 = Math.floor(pts.length / 2) - 1;
             p1 = p0 + 1;
         }
-
-        let x = vertLine ? pts[p0].x : pts[p0].x + (pts[p1].x - pts[p0].x) / 2;
-        let y = vertLine ? pts[p0].y + (pts[p1].y - pts[p0].y) / 2 : pts[p0].y;
-        return new mxPoint(x, y);
+        return new mxPoint(
+            pts[p0].x + (pts[p1].x - pts[p0].x) / 2,
+            pts[p0].y + (pts[p1].y - pts[p0].y) / 2
+        );
     }
 
 
@@ -998,7 +1013,7 @@ Draw.loadPlugin(function (ui) {
     // seg2 goes from just after circle to end.
     function getUseEdgeDrawSegments(pts, style) {
         if (!pts || pts.length < 2) return null;
-        const isVertical = mxUtils.getValue(style, 'vertical', false);
+        const isVertical = resolveVertical(style, pts);
         const circleRadius = 8;
         let p0 = 0, p1 = 1;
         let vertLine = isVertical;
@@ -1015,7 +1030,7 @@ Draw.loadPlugin(function (ui) {
                 p1 = p0 + 1;
             }
             const mid = getEdgeMidPoint(pts, isVertical);
-            vertLine = (pts.length === 2) ? isVertical : !isVertical;
+            vertLine = Math.abs(pts[p1].x - pts[p0].x) < Math.abs(pts[p1].y - pts[p0].y);
             x = mid.x;
             y = mid.y;
         } else {
@@ -1392,7 +1407,7 @@ Draw.loadPlugin(function (ui) {
                 createHandle(state, ['dx', 'dy'], function (bounds) {
                     var dx = Math.max(0, Math.min(bounds.width, mxUtils.getValue(this.state.style, 'dx', 0)));
                     var dy = Math.max(0, Math.min(bounds.height, mxUtils.getValue(this.state.style, 'dy', 0)));
-                    let isVertical = mxUtils.getValue(this.state.style, 'vertical', false)
+                    let isVertical = resolveVertical(this.state.style, state.absolutePoints)
                     if (dx == 0 && dy == 0) {
                         //un initialize
                         let midPoint = getEdgeMidPoint(state.absolutePoints, isVertical);
