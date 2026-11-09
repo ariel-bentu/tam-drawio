@@ -1,5 +1,13 @@
 Draw.loadPlugin(function (ui) {
 
+    // Node-only: expose the pure channel helpers to the test runner. `window` is always
+    // defined in a browser/draw.io webview, so this is a no-op there and the plugin loads
+    // unchanged. The functions below are hoisted, so they are available at this point.
+    if (typeof window === 'undefined' && typeof module !== 'undefined' && module.exports) {
+        module.exports = { resolveVertical, getEdgeMidPoint, getUseEdgeDrawSegments, resolveUseSign };
+        return;
+    }
+
     const config = Object.assign(
         // defaults
         { addPluginMissingLabel: true },
@@ -19,32 +27,6 @@ Draw.loadPlugin(function (ui) {
         DIRECTION_BOTH: 'both',
         NONE: 'none',
     };
-
-    const rotatePosition = {
-        [tamConstants.UP]: tamConstants.LEFT,
-        [tamConstants.DOWN]: tamConstants.RIGHT,
-        [tamConstants.LEFT]: tamConstants.UP,
-        [tamConstants.RIGHT]: tamConstants.DOWN
-    };
-
-    const rotateDirection = {
-        [tamConstants.DIRECTION_NORTH]: tamConstants.DIRECTION_EAST,
-        [tamConstants.DIRECTION_SOUTH]: tamConstants.DIRECTION_WEST,
-        [tamConstants.DIRECTION_EAST]: tamConstants.DIRECTION_NORTH,
-        [tamConstants.DIRECTION_WEST]: tamConstants.DIRECTION_SOUTH,
-        [tamConstants.DIRECTION_BOTH]: tamConstants.DIRECTION_BOTH,
-        [tamConstants.NONE]: tamConstants.NONE,
-
-    };
-
-    const flipDirection = {
-        [tamConstants.DIRECTION_NORTH]: tamConstants.DIRECTION_SOUTH,
-        [tamConstants.DIRECTION_SOUTH]: tamConstants.DIRECTION_NORTH,
-        [tamConstants.DIRECTION_EAST]: tamConstants.DIRECTION_WEST,
-        [tamConstants.DIRECTION_WEST]: tamConstants.DIRECTION_EAST,
-        [tamConstants.DIRECTION_BOTH]: tamConstants.DIRECTION_BOTH,
-        [tamConstants.NONE]: tamConstants.NONE,
-    }
 
     if (!document.getElementById('tam-animation-styles')) {
         const tamStyle = document.createElement('style');
@@ -530,42 +512,12 @@ Draw.loadPlugin(function (ui) {
             let useSignPosition = mxUtils.getValue(this.style, 'useSignPosition', 'up');
             let useSignDirection = mxUtils.getValue(this.style, 'useSignDirection', 'none');
 
-            // For L-shapes (isVertical='both'), the user's chosen direction needs to be adapted
-            // to the current segment orientation. If they choose south (down), it should point
-            // down when on a vertical segment, but should point right when on a horizontal segment.
-            if ((isVertical === 'both' || autoOrient) && useSignDirection !== 'none' && useSignDirection !== 'both') {
-                const isDirectionVertical = (useSignDirection === 'north' || useSignDirection === 'south');
-                const isSegmentVertical = vertLine;
-
-                // If direction orientation doesn't match segment orientation, rotate it
-                if (isDirectionVertical !== isSegmentVertical) {
-                    useSignDirection = rotateDirection[useSignDirection];
-                }
-            }
-
-            // Preserve logical direction of triangle, when curve is flipped
-            if (useSignDirection !== 'none' && lineDirectionCoefficient === -1) {
-                useSignDirection = flipDirection[useSignDirection];
-            }
-
-            // Adjust the location to the position of the circle
-            // For S-shapes: use original p0 % 2 === 0 logic (works correctly for alternating segments)
-            // For L-shapes (isVertical='both'): adjust position based on current segment orientation
-            if (isVertical === 'both' || autoOrient) {
-                // For vertical segments, position should be 'left' or 'right'
-                // For horizontal segments, position should be 'up' or 'down'
-                const basePosition = mxUtils.getValue(this.style, 'useSignPosition', 'up');
-                if (vertLine) {
-                    // Vertical segment - position should be horizontal (left/right)
-                    useSignPosition = (basePosition === 'up' || basePosition === 'left') ? 'left' : 'right';
-                } else {
-                    // Horizontal segment - position should be vertical (up/down)
-                    useSignPosition = (basePosition === 'up' || basePosition === 'left') ? 'up' : 'down';
-                }
-            } else if (pts.length > 2 && p0 % 2 === 0) {
-                useSignPosition = rotatePosition[useSignPosition];
-                useSignDirection = rotateDirection[useSignDirection];
-            }
+            const sign = resolveUseSign(
+                useSignPosition, useSignDirection, vertLine, lineDirectionCoefficient,
+                (isVertical === 'both' || autoOrient), pts.length > 2, p0 % 2 === 0
+            );
+            useSignPosition = sign.position;
+            useSignDirection = sign.direction;
 
             let dx, dy;
             const distance = 20;
@@ -1005,6 +957,40 @@ Draw.loadPlugin(function (ui) {
             pts[p0].x + (pts[p1].x - pts[p0].x) / 2,
             pts[p0].y + (pts[p1].y - pts[p0].y) / 2
         );
+    }
+
+    // Pure: adapt the use-sign's position/direction to the segment it sits on.
+    // `adapt` is true for 'both'/L and 'auto' channels (orientation read from geometry);
+    // for those the sign follows the segment at any point count. `routed`/`p0IsEven`
+    // drive the legacy S-channel rotation used only when not adapting.
+    function resolveUseSign(position, direction, vertLine, lineDirectionCoefficient, adapt, routed, p0IsEven) {
+        const rotateDirection = { north: 'east', south: 'west', east: 'north', west: 'south', both: 'both', none: 'none' };
+        const flipDirection = { north: 'south', south: 'north', east: 'west', west: 'east', both: 'both', none: 'none' };
+        const rotatePosition = { up: 'left', down: 'right', left: 'up', right: 'down' };
+
+        if (adapt && direction !== 'none' && direction !== 'both') {
+            const isDirectionVertical = (direction === 'north' || direction === 'south');
+            if (isDirectionVertical !== vertLine) {
+                direction = rotateDirection[direction];
+            }
+        }
+
+        // Preserve logical direction when the segment runs the other way
+        if (direction !== 'none' && lineDirectionCoefficient === -1) {
+            direction = flipDirection[direction];
+        }
+
+        if (adapt) {
+            // Position perpendicular to the segment: vertical -> left/right, horizontal -> up/down
+            position = vertLine
+                ? ((position === 'up' || position === 'left') ? 'left' : 'right')
+                : ((position === 'up' || position === 'left') ? 'up' : 'down');
+        } else if (routed && p0IsEven) {
+            position = rotatePosition[position];
+            direction = rotateDirection[direction];
+        }
+
+        return { position, direction };
     }
 
 

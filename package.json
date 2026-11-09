@@ -5,7 +5,8 @@
   "description": "A [draw.io](https://github.com/jgraph/drawio) plugin which offers TAM notation",
   "main": "tam-drawio.js",
   "scripts": {
-    "pages": "node generate-pages.js"
+    "pages": "node generate-pages.js",
+    "test": "node --test"
   },
   "repository": {
     "type": "git",
