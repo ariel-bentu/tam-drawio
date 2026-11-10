@@ -18,7 +18,8 @@ Draw.loadPlugin(function (ui) {
     // Line-crossing jumps. draw.io's native line jumps are fully wired and on
     // (Graph.lineJumpsEnabled), but only fire for an edge whose `jumpStyle` is
     // set — the default is 'none', so nothing ever jumps. Default it to an arc
-    // for every edge so a line crossing another bumps over it. Jumps apply only
+    // for TAM channels only (non-TAM edges are left untouched) so a channel
+    // crossing another line bumps over it. Jumps apply only
     // against earlier-drawn edges, so only the top line bumps (no double bumps).
     // Explicit per-edge jumpStyle (incl. 'none' to opt out) is kept; set
     // Editor.globalVars.tam.jumpStyle='none' to disable globally.
@@ -458,7 +459,7 @@ Draw.loadPlugin(function (ui) {
                     p1 = p0 + 1;
                 }
                 let midPoint = getEdgeMidPoint(pts, isVertical);
-                vertLine = Math.abs(pts[p1].x - pts[p0].x) < Math.abs(pts[p1].y - pts[p0].y);
+                vertLine = (pts.length === 2 && isVertical !== 'both') ? !!isVertical : Math.abs(pts[p1].x - pts[p0].x) < Math.abs(pts[p1].y - pts[p0].y);
                 x = midPoint.x;
                 y = midPoint.y;
                 // A 2-point channel is drawn axis-aligned at pts[0] (see endPoint
@@ -996,16 +997,15 @@ Draw.loadPlugin(function (ui) {
 
     mxResources.parse('flipUse=Flip Use Direction');
 
-    // Decide whether to inject a default jumpStyle. True only for edges that
-    // have no explicit jumpStyle and when jumps aren't globally disabled.
-    // `updateedge` is excluded: it paints paired curved arrows, not a line, so
-    // jumps make no sense there. `useedge` (channels) IS included and paints its
-    // own jumps in UseEdgeShape (see paintLineJumps), since draw.io's native
+    // Decide whether to inject a default jumpStyle. True only for TAM channels
+    // (`useedge`) that have no explicit jumpStyle and when jumps aren't globally
+    // disabled, so non-TAM edges keep draw.io's default rendering. Channels paint
+    // their own jumps in UseEdgeShape (see paintLineJumps), since draw.io's native
     // paintLine can't follow the split-around-the-circle segments.
     function resolveJumpStyle(styleObj, isEdge, cfgStyle) {
         if (!isEdge || !cfgStyle || cfgStyle === 'none') return false;
         if (styleObj == null || styleObj.jumpStyle != null) return false;
-        return styleObj.shape !== 'updateedge';
+        return styleObj.shape === 'useedge';
     }
 
     // Build the draw program for a polyline with 'arc' line-jumps at the given
@@ -1124,7 +1124,7 @@ Draw.loadPlugin(function (ui) {
                 p1 = p0 + 1;
             }
             const mid = getEdgeMidPoint(pts, isVertical);
-            vertLine = Math.abs(pts[p1].x - pts[p0].x) < Math.abs(pts[p1].y - pts[p0].y);
+            vertLine = (pts.length === 2 && isVertical !== 'both') ? !!isVertical : Math.abs(pts[p1].x - pts[p0].x) < Math.abs(pts[p1].y - pts[p0].y);
             x = mid.x;
             y = mid.y;
             if (pts.length === 2) { vertLine ? x = pts[0].x : y = pts[0].y; }

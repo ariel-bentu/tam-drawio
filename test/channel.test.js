@@ -117,18 +117,20 @@ test('getUseEdgeDrawSegments: offset boxes keep the 2-point line axis-aligned (n
     for (const p of [...segs.seg1, ...segs.seg2]) assert.equal(p.x, 297.43);
 });
 
-test('resolveJumpStyle: edge without jumpStyle gets the default', () => {
-    assert.equal(resolveJumpStyle({ edgeStyle: 'none' }, true, 'arc'), true);
+test('resolveJumpStyle: channel without jumpStyle gets the default; non-TAM edges untouched', () => {
+    assert.equal(resolveJumpStyle({ shape: 'useedge', edgeStyle: 'none' }, true, 'arc'), true);
+    assert.equal(resolveJumpStyle({ edgeStyle: 'none' }, true, 'arc'), false);
+    assert.equal(resolveJumpStyle({ edgeStyle: 'orthogonalEdgeStyle' }, true, 'arc'), false);
 });
 
 test('resolveJumpStyle: explicit jumpStyle (incl. none) is left untouched', () => {
-    assert.equal(resolveJumpStyle({ jumpStyle: 'gap' }, true, 'arc'), false);
-    assert.equal(resolveJumpStyle({ jumpStyle: 'none' }, true, 'arc'), false);
+    assert.equal(resolveJumpStyle({ shape: 'useedge', jumpStyle: 'gap' }, true, 'arc'), false);
+    assert.equal(resolveJumpStyle({ shape: 'useedge', jumpStyle: 'none' }, true, 'arc'), false);
 });
 
 test('resolveJumpStyle: vertices and global-off never inject', () => {
-    assert.equal(resolveJumpStyle({}, false, 'arc'), false);   // not an edge
-    assert.equal(resolveJumpStyle({}, true, 'none'), false);    // globally disabled
+    assert.equal(resolveJumpStyle({ shape: 'useedge' }, false, 'arc'), false);   // not an edge
+    assert.equal(resolveJumpStyle({ shape: 'useedge' }, true, 'none'), false);    // globally disabled
 });
 
 test('resolveJumpStyle: updateedge excluded, useedge included (paints own jumps)', () => {
