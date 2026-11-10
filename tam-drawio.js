@@ -4,16 +4,34 @@ Draw.loadPlugin(function (ui) {
     // defined in a browser/draw.io webview, so this is a no-op there and the plugin loads
     // unchanged. The functions below are hoisted, so they are available at this point.
     if (typeof window === 'undefined' && typeof module !== 'undefined' && module.exports) {
-        module.exports = { resolveVertical, getEdgeMidPoint, getUseEdgeDrawSegments, resolveUseSign };
+        module.exports = { resolveVertical, getEdgeMidPoint, getUseEdgeDrawSegments, resolveUseSign, resolveJumpStyle, jumpDrawProgram };
         return;
     }
 
     const config = Object.assign(
         // defaults
-        { addPluginMissingLabel: true },
+        { addPluginMissingLabel: true, jumpStyle: 'arc' },
         // user settings
         Editor?.globalVars?.tam
     );
+
+    // Line-crossing jumps. draw.io's native line jumps are fully wired and on
+    // (Graph.lineJumpsEnabled), but only fire for an edge whose `jumpStyle` is
+    // set — the default is 'none', so nothing ever jumps. Default it to an arc
+    // for every edge so a line crossing another bumps over it. Jumps apply only
+    // against earlier-drawn edges, so only the top line bumps (no double bumps).
+    // Explicit per-edge jumpStyle (incl. 'none' to opt out) is kept; set
+    // Editor.globalVars.tam.jumpStyle='none' to disable globally.
+    const cfgJumpStyle = config.jumpStyle;
+    const graphGetCellStyle = ui.editor.graph.getCellStyle;
+    ui.editor.graph.getCellStyle = function (cell) {
+        const style = graphGetCellStyle.apply(this, arguments);
+        if (resolveJumpStyle(style, cell && this.model.isEdge(cell), cfgJumpStyle)) {
+            style.jumpStyle = cfgJumpStyle;
+            if (config.jumpSize != null) style.jumpSize = config.jumpSize;
+        }
+        return style;
+    };
 
     const tamConstants = {
         UP: 'up',
@@ -402,10 +420,23 @@ Draw.loadPlugin(function (ui) {
             const prev = c.pointerEventsValue;
             c.pointerEventsValue = 'stroke';
 
+            const curved = this.style && this.style[mxConstants.STYLE_CURVED] === '1';
+            const routed = this.state && this.state.routedPoints;
+            // When jumps are active draw.io populates routedPoints for the whole
+            // edge and its paintLine redraws from those, mangling our split
+            // segments — so paint the polyline (and bumps) ourselves instead.
+            const usePainter = !curved && this.style != null && routed &&
+                routed.length > 0 && this.isLineJumpsPainted();
+            const tr = (this.viewTranslate != null) ? this.viewTranslate :
+                (this.state && this.state.view.translate);
+            const jumps = usePainter
+                ? routed.filter(p => p.type === 1).map(p => ({ x: p.x + tr.x, y: p.y + tr.y }))
+                : [];
+
             const drawEdge = (drawPoints) => {
-                this.style && this.style[mxConstants.STYLE_CURVED] === '1' ?
-                    this.paintCurvedLine(c, drawPoints) :
-                    this.paintLine(c, drawPoints, this.isRounded);
+                if (curved) { this.paintCurvedLine(c, drawPoints); return; }
+                if (usePainter) { this.paintLineJumps(c, drawPoints, jumps); return; }
+                this.paintLine(c, drawPoints, this.isRounded);
             }
 
             const inBetween = (n, n1, n2) => {
@@ -430,6 +461,9 @@ Draw.loadPlugin(function (ui) {
                 vertLine = Math.abs(pts[p1].x - pts[p0].x) < Math.abs(pts[p1].y - pts[p0].y);
                 x = midPoint.x;
                 y = midPoint.y;
+                // A 2-point channel is drawn axis-aligned at pts[0] (see endPoint
+                // below), so snap the circle onto that line or offset boxes kink it.
+                if (pts.length === 2) { vertLine ? x = pts[0].x : y = pts[0].y; }
             } else {
                 //calculate on-the-line point
                 p0 = 0;
@@ -588,6 +622,27 @@ Draw.loadPlugin(function (ui) {
 
             (sourceMarker => typeof sourceMarker === 'function' && sourceMarker())(this.createMarker(c, pts, true));
             (targetMarker => typeof targetMarker === 'function' && targetMarker())(this.createMarker(c, pts, false));
+        }
+
+        // Paints a polyline with 'arc' line-jumps where crossing points (jumps,
+        // absolute coords) lie on it. Replaces the native paintLine for channels
+        // because that one redraws from the full edge's routedPoints.
+        paintLineJumps(c, pts, jumps) {
+            const size = this.getLineJumpSize();
+            const arcSize = mxUtils.getValue(this.style, mxConstants.STYLE_ARCSIZE, mxConstants.LINE_ARCSIZE) / 2;
+            c.begin();
+            let moveTo = true;
+            for (const op of jumpDrawProgram(pts, jumps, size)) {
+                if (op.pts) {
+                    this.addPoints(c, op.pts, this.isRounded, arcSize, false, null, moveTo);
+                } else {
+                    const { p0, p1, nx, ny } = op.bump;
+                    const f = ((Math.round(nx) < 0 || (Math.round(nx) === 0 && Math.round(ny) <= 0)) ? 1 : -1) * 1.3;
+                    c.curveTo(p0.x - ny * f, p0.y + nx * f, p1.x - ny * f, p1.y + nx * f, p1.x, p1.y);
+                }
+                moveTo = false;
+            }
+            c.stroke();
         }
     }
 
@@ -824,7 +879,14 @@ Draw.loadPlugin(function (ui) {
 
     ui.sidebar.setCurrentSearchEntryLibrary('tam', 'tamBlock');
     ui.sidebar.addPalette('tamBlock', 'TAM / Block', true, function (content) {
-        content.appendChild(ui.sidebar.createEdgeTemplate('shape=useedge;vertical=auto;edgeStyle=orthogonalEdgeStyle;endArrow=none;useSignPosition=left;useSignDirection=south;', 160, 160, '', 'Channel'));
+        const smartChannel = ui.sidebar.createEdgeTemplate('shape=useedge;vertical=auto;edgeStyle=orthogonalEdgeStyle;endArrow=none;useSignPosition=left;useSignDirection=south;', 160, 160, '', 'Smart Channel');
+        // ✨ badge so the auto-orienting channel stands out from the fixed ones
+        smartChannel.style.position = 'relative';
+        const magic = document.createElement('div');
+        magic.textContent = '✨';
+        magic.style.cssText = 'position:absolute;top:1px;right:3px;font-size:12px;line-height:1;pointer-events:none;';
+        smartChannel.appendChild(magic);
+        content.appendChild(smartChannel);
         content.appendChild(ui.sidebar.createEdgeTemplate('shape=useedge;vertical=true;edgeStyle=none;endArrow=none;useSignPosition=left;useSignDirection=south;', 0, 160, '', 'Vertical Channel'));
         content.appendChild(ui.sidebar.createEdgeTemplate('shape=useedge;endArrow=none;edgeStyle=none;useSignPosition=up;useSignDirection=east;', 160, 0, '', 'Horizontal Channel'));
         content.appendChild(ui.sidebar.createEdgeTemplate('rounded=1;shape=useedge;vertical=true;edgeStyle=elbowEdgeStyle;elbow=vertical;endArrow=none;useSignPosition=up;useSignDirection=east;', 70, 160, '', 'Vertical S-Channel'));
@@ -934,6 +996,52 @@ Draw.loadPlugin(function (ui) {
 
     mxResources.parse('flipUse=Flip Use Direction');
 
+    // Decide whether to inject a default jumpStyle. True only for edges that
+    // have no explicit jumpStyle and when jumps aren't globally disabled.
+    // `updateedge` is excluded: it paints paired curved arrows, not a line, so
+    // jumps make no sense there. `useedge` (channels) IS included and paints its
+    // own jumps in UseEdgeShape (see paintLineJumps), since draw.io's native
+    // paintLine can't follow the split-around-the-circle segments.
+    function resolveJumpStyle(styleObj, isEdge, cfgStyle) {
+        if (!isEdge || !cfgStyle || cfgStyle === 'none') return false;
+        if (styleObj == null || styleObj.jumpStyle != null) return false;
+        return styleObj.shape !== 'updateedge';
+    }
+
+    // Build the draw program for a polyline with 'arc' line-jumps at the given
+    // crossing points. Returns ordered ops: {pts:[...]} straight runs to stroke,
+    // {bump:{p0,p1,nx,ny}} arcs over a crossing. size = half the jump width.
+    // Pure (plain {x,y} points) so it unit-tests without a canvas. Mirrors the
+    // 'arc' branch of draw.io's mxConnector.prototype.paintLine.
+    function jumpDrawProgram(pts, jumps, size) {
+        const ops = [];
+        let buf = [pts[0]];
+        for (let i = 0; i < pts.length - 1; i++) {
+            const a = pts[i], b = pts[i + 1];
+            const len = Math.hypot(b.x - a.x, b.y - a.y);
+            if (len === 0) continue;
+            const ux = (b.x - a.x) / len, uy = (b.y - a.y) / len;
+            const hits = jumps
+                .map(j => ({ t: (j.x - a.x) * ux + (j.y - a.y) * uy,
+                             d: Math.abs((j.x - a.x) * uy - (j.y - a.y) * ux) }))
+                .filter(h => h.t > size && h.t < len - size && h.d < 1)
+                .sort((h1, h2) => h1.t - h2.t);
+            for (const h of hits) {
+                const cx = a.x + ux * h.t, cy = a.y + uy * h.t;
+                const nx = ux * size, ny = uy * size;
+                const p0 = { x: cx - nx, y: cy - ny };
+                const p1 = { x: cx + nx, y: cy + ny };
+                buf.push(p0);
+                ops.push({ pts: buf });
+                ops.push({ bump: { p0, p1, nx, ny } });
+                buf = [p1];
+            }
+            buf.push(b);
+        }
+        ops.push({ pts: buf });
+        return ops;
+    }
+
     // Smart channel: resolve `vertical` from actual geometry when style says 'auto'.
     // 2 points -> vertical when taller than wide; routed (3+ points) -> 'both' (L behavior).
     function resolveVertical(style, pts) {
@@ -1019,6 +1127,7 @@ Draw.loadPlugin(function (ui) {
             vertLine = Math.abs(pts[p1].x - pts[p0].x) < Math.abs(pts[p1].y - pts[p0].y);
             x = mid.x;
             y = mid.y;
+            if (pts.length === 2) { vertLine ? x = pts[0].x : y = pts[0].y; }
         } else {
             p0 = 0; p1 = 1;
             const left = Math.min(...pts.map(o => o.x));
