@@ -109,6 +109,14 @@ test('getUseEdgeDrawSegments: routed edge splits on the vertical mid-segment', (
     assert.deepEqual(xy(first2), P(297.5, 273));
 });
 
+test('getUseEdgeDrawSegments: offset boxes keep the 2-point line axis-aligned (no kink)', () => {
+    // Boxes slightly offset -> endpoints have different x. The drawn line is
+    // vertical at pts[0].x, so the circle must snap there too, not to the slant
+    // midpoint x (which used to V-kink the two halves).
+    const segs = getUseEdgeDrawSegments([P(297.43, 61), P(279.57, 211)], { vertical: 'auto' });
+    for (const p of [...segs.seg1, ...segs.seg2]) assert.equal(p.x, 297.43);
+});
+
 test('resolveJumpStyle: edge without jumpStyle gets the default', () => {
     assert.equal(resolveJumpStyle({ edgeStyle: 'none' }, true, 'arc'), true);
 });

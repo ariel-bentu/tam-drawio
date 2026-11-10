@@ -461,6 +461,9 @@ Draw.loadPlugin(function (ui) {
                 vertLine = Math.abs(pts[p1].x - pts[p0].x) < Math.abs(pts[p1].y - pts[p0].y);
                 x = midPoint.x;
                 y = midPoint.y;
+                // A 2-point channel is drawn axis-aligned at pts[0] (see endPoint
+                // below), so snap the circle onto that line or offset boxes kink it.
+                if (pts.length === 2) { vertLine ? x = pts[0].x : y = pts[0].y; }
             } else {
                 //calculate on-the-line point
                 p0 = 0;
@@ -1124,6 +1127,7 @@ Draw.loadPlugin(function (ui) {
             vertLine = Math.abs(pts[p1].x - pts[p0].x) < Math.abs(pts[p1].y - pts[p0].y);
             x = mid.x;
             y = mid.y;
+            if (pts.length === 2) { vertLine ? x = pts[0].x : y = pts[0].y; }
         } else {
             p0 = 0; p1 = 1;
             const left = Math.min(...pts.map(o => o.x));
