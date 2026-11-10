@@ -20,7 +20,7 @@ global.mxUtils = {
     },
 };
 
-const { resolveVertical, getEdgeMidPoint, getUseEdgeDrawSegments, resolveUseSign } =
+const { resolveVertical, getEdgeMidPoint, getUseEdgeDrawSegments, resolveUseSign, resolveJumpStyle, jumpDrawProgram } =
     require('../tam-drawio.js');
 
 const P = (x, y) => ({ x, y });
@@ -107,4 +107,52 @@ test('getUseEdgeDrawSegments: routed edge splits on the vertical mid-segment', (
     const first2 = segs.seg2[0];
     assert.deepEqual(xy(last1), P(297.5, 257));
     assert.deepEqual(xy(first2), P(297.5, 273));
+});
+
+test('resolveJumpStyle: edge without jumpStyle gets the default', () => {
+    assert.equal(resolveJumpStyle({ edgeStyle: 'none' }, true, 'arc'), true);
+});
+
+test('resolveJumpStyle: explicit jumpStyle (incl. none) is left untouched', () => {
+    assert.equal(resolveJumpStyle({ jumpStyle: 'gap' }, true, 'arc'), false);
+    assert.equal(resolveJumpStyle({ jumpStyle: 'none' }, true, 'arc'), false);
+});
+
+test('resolveJumpStyle: vertices and global-off never inject', () => {
+    assert.equal(resolveJumpStyle({}, false, 'arc'), false);   // not an edge
+    assert.equal(resolveJumpStyle({}, true, 'none'), false);    // globally disabled
+});
+
+test('resolveJumpStyle: updateedge excluded, useedge included (paints own jumps)', () => {
+    assert.equal(resolveJumpStyle({ shape: 'updateedge' }, true, 'arc'), false);
+    assert.equal(resolveJumpStyle({ shape: 'useedge' }, true, 'arc'), true);
+});
+
+test('jumpDrawProgram: inserts one arc bump at a crossing on a straight run', () => {
+    // horizontal run 0..100 at y=0, crossing at x=50, size=6
+    const ops = jumpDrawProgram([P(0, 0), P(100, 0)], [P(50, 0)], 6);
+    assert.equal(ops.filter(o => o.bump).length, 1);
+    const bump = ops.find(o => o.bump).bump;
+    assert.deepEqual(bump.p0, { x: 44, y: 0 });   // 6 before crossing
+    assert.deepEqual(bump.p1, { x: 56, y: 0 });   // 6 after
+    // straight runs end/start at the bump edges
+    const runs = ops.filter(o => o.pts).map(o => o.pts);
+    assert.deepEqual(runs[0][runs[0].length - 1], { x: 44, y: 0 });
+    assert.deepEqual(runs[runs.length - 1][0], { x: 56, y: 0 });
+});
+
+test('jumpDrawProgram: no bump when nothing crosses, or crossing off the line', () => {
+    assert.equal(jumpDrawProgram([P(0, 0), P(100, 0)], [], 6).filter(o => o.bump).length, 0);
+    // point not on the line (y=20) -> ignored
+    assert.equal(jumpDrawProgram([P(0, 0), P(100, 0)], [P(50, 20)], 6).filter(o => o.bump).length, 0);
+    // too close to an endpoint to fit a full bump -> ignored
+    assert.equal(jumpDrawProgram([P(0, 0), P(100, 0)], [P(3, 0)], 6).filter(o => o.bump).length, 0);
+});
+
+test('jumpDrawProgram: bump lands on the right segment of an L-route', () => {
+    // down then right; crossing on the vertical leg at (0,50)
+    const ops = jumpDrawProgram([P(0, 0), P(0, 100), P(100, 100)], [P(0, 50)], 6);
+    const bump = ops.find(o => o.bump).bump;
+    assert.deepEqual(bump.p0, { x: 0, y: 44 });
+    assert.deepEqual(bump.p1, { x: 0, y: 56 });
 });
