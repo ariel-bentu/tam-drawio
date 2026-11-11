@@ -531,11 +531,15 @@ Draw.loadPlugin(function (ui) {
             drawEdge(pts1);
 
             c.setStrokeWidth(strokeWidth * 2);
+            // Grow the drawn circle with thick lines so the ring doesn't fill it solid
+            // (the split points above keep circleRadius; the filled circle covers the rest).
+            const extra = Math.max(0, strokeWidth - 1);
+            const drawnRadius = circleRadius + extra;
             c.ellipse(
-                x - circleRadius,
-                y - circleRadius,
-                circleRadius * 2,
-                circleRadius * 2
+                x - drawnRadius,
+                y - drawnRadius,
+                drawnRadius * 2,
+                drawnRadius * 2
             );
             // Adapt circle fill color to theme: white for light mode, black for dark mode
             const isDarkMode = typeof Editor !== 'undefined' && Editor.darkMode;
@@ -556,7 +560,9 @@ Draw.loadPlugin(function (ui) {
             useSignDirection = sign.direction;
 
             let dx, dy;
-            const distance = 20;
+            // Keep clear of the (grown) circle; the sign itself stays a fixed size
+            const distance = 20 + 2 * extra;
+            c.setStrokeWidth(Math.min(strokeWidth * 2, 2));
 
             switch (useSignPosition) {
                 case tamConstants.DOWN:
