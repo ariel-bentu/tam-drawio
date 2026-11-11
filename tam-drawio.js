@@ -899,9 +899,9 @@ Draw.loadPlugin(function (ui) {
     ui.sidebar.setCurrentSearchEntryLibrary('tam', 'tamBlock');
     ui.sidebar.addPalette('tamBlock', 'TAM / Block', true, function (content) {
         const smartChannel = ui.sidebar.createEdgeTemplate('shape=useedge;vertical=auto;edgeStyle=orthogonalEdgeStyle;endArrow=none;useSignPosition=left;useSignDirection=south;', 160, 160, '', 'Smart Channel');
-        // Hand-drawn thumbnail: channel + magic wand, the usual "automatic" metaphor,
+        // Hand-drawn thumbnail: L-channel + "AUTO" label,
         // so the icon shows that the channel routes and orients itself. Hover preview still renders the real edge.
-        const smartIcon = new DOMParser().parseFromString('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2 31H7M15 31H34"/><circle cx="11" cy="31" r="4"/><path d="M10 22L22 10" stroke-width="2.6"/><path d="M26 0.5Q26 7 32.5 7Q26 7 26 13.5Q26 7 19.5 7Q26 7 26 0.5ZM32 13.8Q32 17 35.2 17Q32 17 32 20.2Q32 17 28.8 17Q32 17 32 13.8ZM14 1.7999999999999998Q14 5 17.2 5Q14 5 14 8.2Q14 5 10.8 5Q14 5 14 1.7999999999999998Z" fill="currentColor" stroke="none"/></svg>', 'image/svg+xml').documentElement;
+        const smartIcon = new DOMParser().parseFromString('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2 29H8M16 29H25Q31 29 31 23V18"/><circle cx="12" cy="29" r="4"/><text x="1" y="14" font-family="Helvetica,Arial,sans-serif" font-size="11" font-weight="bold" fill="currentColor" stroke="none">AUTO</text></svg>', 'image/svg+xml').documentElement;
         const smartThumb = smartChannel.querySelector('svg');
         if (smartThumb) smartThumb.replaceWith(smartIcon); else smartChannel.appendChild(smartIcon);
         content.appendChild(smartChannel);
