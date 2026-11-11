@@ -898,7 +898,7 @@ Draw.loadPlugin(function (ui) {
 
     ui.sidebar.setCurrentSearchEntryLibrary('tam', 'tamBlock');
     ui.sidebar.addPalette('tamBlock', 'TAM / Block', true, function (content) {
-        const smartChannel = ui.sidebar.createEdgeTemplate('shape=useedge;vertical=auto;edgeStyle=orthogonalEdgeStyle;endArrow=none;useSignPosition=left;useSignDirection=south;', 160, 160, '', 'Auto Channel');
+        const smartChannel = ui.sidebar.createEdgeTemplate('shape=useedge;vertical=auto;edgeStyle=orthogonalEdgeStyle;endArrow=none;useSignPosition=left;useSignDirection=south;', 160, 160, '', 'Auto-Orient Channel');
         // Hand-drawn thumbnail: L-channel with R direction sign + "AUTO" label,
         // so the icon shows that the channel routes and orients itself. Hover preview still renders the real edge.
         const smartIcon = new DOMParser().parseFromString('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2 30H8M16 30H25Q31 30 31 24V16"/><circle cx="12" cy="30" r="4"/><g fill="currentColor" stroke="none" font-family="Helvetica,Arial,sans-serif" font-weight="bold"><text x="1" y="10" font-size="11">AUTO</text><text x="6" y="23" font-size="8">R</text><path d="M13 17L18.5 20L13 23Z"/></g></svg>', 'image/svg+xml').documentElement;
