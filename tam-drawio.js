@@ -530,6 +530,10 @@ Draw.loadPlugin(function (ui) {
             pts1 = [cpt, ...pts.slice(p1, pts.length - 1), endPoint];
             drawEdge(pts1);
 
+            // Lines above are stroke-only for hit-testing; restore before the circle so a
+            // click anywhere inside it selects the channel, not just on its ring.
+            c.pointerEventsValue = prev;
+
             c.setStrokeWidth(strokeWidth * 2);
             // Grow the drawn circle with thick lines so the ring doesn't fill it solid
             // (the split points above keep circleRadius; the filled circle covers the rest).
@@ -548,8 +552,6 @@ Draw.loadPlugin(function (ui) {
             const isDarkMode = c.adaptiveColors == null && typeof Editor !== 'undefined' && Editor.darkMode;
             c.setFillColor(isDarkMode ? '#000000' : '#FFFFFF');
             c.fillAndStroke()
-
-            c.pointerEventsValue = prev;
 
             // Draw triangle
             let useSignPosition = mxUtils.getValue(this.style, 'useSignPosition', 'up');
