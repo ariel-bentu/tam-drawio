@@ -427,7 +427,8 @@ Draw.loadPlugin(function (ui) {
             // edge and its paintLine redraws from those, mangling our split
             // segments — so paint the polyline (and bumps) ourselves instead.
             const usePainter = !curved && this.style != null && routed &&
-                routed.length > 0 && this.isLineJumpsPainted();
+                routed.length > 0 && (typeof this.isLineJumpsPainted === 'function'
+                    ? this.isLineJumpsPainted() : !this.outline); // helper missing in older draw.io (e.g. 32.4.1)
             const tr = (this.viewTranslate != null) ? this.viewTranslate :
                 (this.state && this.state.view.translate);
             const jumps = usePainter
@@ -630,7 +631,9 @@ Draw.loadPlugin(function (ui) {
         // paintLine for channels because that one redraws from the full edge's
         // routedPoints. The per-jump branch mirrors draw.io's paintLine.
         paintLineJumps(c, pts, jumps) {
-            const size = this.getLineJumpSize();
+            // Older draw.io (e.g. 32.4.1) inlines this in paintLine instead of a helper
+            const size = (typeof this.getLineJumpSize === 'function') ? this.getLineJumpSize() :
+                (parseInt(mxUtils.getValue(this.style, 'jumpSize', Graph.defaultJumpSize)) - 2) / 2 + this.strokewidth;
             const arcSize = mxUtils.getValue(this.style, mxConstants.STYLE_ARCSIZE, mxConstants.LINE_ARCSIZE) / 2;
             const style = mxUtils.getValue(this.style, 'jumpStyle', 'none');
             c.begin();
