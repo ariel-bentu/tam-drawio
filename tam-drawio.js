@@ -4,7 +4,7 @@ Draw.loadPlugin(function (ui) {
     // defined in a browser/draw.io webview, so this is a no-op there and the plugin loads
     // unchanged. The functions below are hoisted, so they are available at this point.
     if (typeof window === 'undefined' && typeof module !== 'undefined' && module.exports) {
-        module.exports = { resolveVertical, getEdgeMidPoint, getUseEdgeDrawSegments, resolveUseSign, resolveJumpStyle, jumpDrawProgram };
+        module.exports = { resolveVertical, getEdgeMidPoint, clampToSegment, getUseEdgeDrawSegments, resolveUseSign, resolveJumpStyle, jumpDrawProgram };
         return;
     }
 
@@ -478,7 +478,7 @@ Draw.loadPlugin(function (ui) {
 
                     if (Math.abs(pts[i].x - pts[i + 1].x) <= 2 * circleRadius || isVertical && pts.length === 2) {
                         if (inBetween(Math.max(top + circleRadius, Math.min(top + cy, bottom - circleRadius)), pts[i].y, pts[i + 1].y)) {
-                            y = top + cy;
+                            y = clampToSegment(top + cy, pts[i].y, pts[i + 1].y, circleRadius);
                             x = pts[i].x;
                             p0 = i;
                             p1 = i + 1;
@@ -492,7 +492,7 @@ Draw.loadPlugin(function (ui) {
                     } else {
                         if (inBetween(Math.max(left + circleRadius, Math.min(left + cx, right - circleRadius)), pts[i].x, pts[i + 1].x)) {
                             y = pts[i].y;
-                            x = left + cx;
+                            x = clampToSegment(left + cx, pts[i].x, pts[i + 1].x, circleRadius);
                             p0 = i;
                             p1 = i + 1;
                             vertLine = false;
@@ -1102,6 +1102,14 @@ Draw.loadPlugin(function (ui) {
         );
     }
 
+    // Keep a saved (dx/dy) circle position on the segment it was matched to. dx/dy are
+    // relative to the edge bounds, so after the route changes the raw value can fall
+    // past the segment's end. Falls back to the segment middle when it's shorter than the circle.
+    function clampToSegment(v, a, b, r) {
+        const lo = Math.min(a, b) + r, hi = Math.max(a, b) - r;
+        return lo <= hi ? Math.max(lo, Math.min(v, hi)) : (a + b) / 2;
+    }
+
     // Pure: adapt the use-sign's position/direction to the segment it sits on.
     // `adapt` is true for 'both'/L and 'auto' channels (orientation read from geometry);
     // for those the sign follows the segment at any point count. `routed`/`p0IsEven`
@@ -1172,12 +1180,12 @@ Draw.loadPlugin(function (ui) {
             for (let i = 0; i < pts.length - 1; i++) {
                 if (Math.abs(pts[i].x - pts[i + 1].x) <= 2 * circleRadius || isVertical && pts.length === 2) {
                     if (inBetween(Math.max(top + circleRadius, Math.min(top + cy, bottom - circleRadius)), pts[i].y, pts[i + 1].y)) {
-                        y = top + cy; x = pts[i].x; p0 = i; p1 = i + 1; vertLine = true;
+                        y = clampToSegment(top + cy, pts[i].y, pts[i + 1].y, circleRadius); x = pts[i].x; p0 = i; p1 = i + 1; vertLine = true;
                         if (Math.abs(pts[i].x - (left + cx)) <= 2 * circleRadius) break;
                     }
                 } else {
                     if (inBetween(Math.max(left + circleRadius, Math.min(left + cx, right - circleRadius)), pts[i].x, pts[i + 1].x)) {
-                        y = pts[i].y; x = left + cx; p0 = i; p1 = i + 1; vertLine = false;
+                        y = pts[i].y; x = clampToSegment(left + cx, pts[i].x, pts[i + 1].x, circleRadius); p0 = i; p1 = i + 1; vertLine = false;
                         if (Math.abs(pts[i].y - (top + cy)) <= 2 * circleRadius) break;
                     }
                 }

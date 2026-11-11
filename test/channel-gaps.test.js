@@ -17,7 +17,7 @@ global.mxUtils = {
     },
 };
 
-const { resolveVertical, getUseEdgeDrawSegments, resolveUseSign, resolveJumpStyle, jumpDrawProgram } =
+const { resolveVertical, getUseEdgeDrawSegments, clampToSegment, resolveUseSign, resolveJumpStyle, jumpDrawProgram } =
     require('../tam-drawio.js');
 
 const P = (x, y) => ({ x, y });
@@ -58,6 +58,27 @@ test('getUseEdgeDrawSegments: auto horizontal channel with dx/dy places circle o
     const segs = getUseEdgeDrawSegments([P(0, 50), P(100, 50)], { vertical: 'auto', dx: 30, dy: 0 });
     assert.deepEqual(xy(last(segs.seg1)), P(22, 50));
     assert.deepEqual(xy(segs.seg2[0]), P(38, 50));
+});
+
+test('getUseEdgeDrawSegments: saved circle stays on its segment after the route changes', () => {
+    // Z-route whose short middle leg runs 130 -> 100; saved dx would put the circle at x=205
+    const segs = getUseEdgeDrawSegments([P(130, 0), P(130, 265), P(100, 265), P(100, 490)],
+        { vertical: 'auto', dx: 105, dy: 265 });
+    const a = last(segs.seg1), b = segs.seg2[0];
+    assert.equal(a.y, 265);
+    assert.ok(a.x >= 100 && a.x <= 130 && b.x >= 100 && b.x <= 130, `gap ${a.x}..${b.x} off segment`);
+});
+
+test('getUseEdgeDrawSegments: saved circle on a vertical leg is clamped too', () => {
+    const segs = getUseEdgeDrawSegments([P(50, 0), P(50, 100), P(200, 100)], { vertical: 'auto', dx: 0, dy: 400 });
+    for (const p of [last(segs.seg1), segs.seg2[0]]) assert.ok(p.y >= 0 && p.y <= 100);
+});
+
+test('clampToSegment: keeps the circle inside, or centres it on a too-short segment', () => {
+    assert.equal(clampToSegment(205, 130, 100, 8), 122);
+    assert.equal(clampToSegment(50, 0, 100, 8), 50);
+    assert.equal(clampToSegment(-20, 0, 100, 8), 8);
+    assert.equal(clampToSegment(90, 100, 110, 8), 105);
 });
 
 test('getUseEdgeDrawSegments: fewer than 2 points returns null', () => {
