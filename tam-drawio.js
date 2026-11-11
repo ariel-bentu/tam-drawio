@@ -1,11 +1,38 @@
 Draw.loadPlugin(function (ui) {
 
+    // Node-only: expose the pure channel helpers to the test runner. `window` is always
+    // defined in a browser/draw.io webview, so this is a no-op there and the plugin loads
+    // unchanged. The functions below are hoisted, so they are available at this point.
+    if (typeof window === 'undefined' && typeof module !== 'undefined' && module.exports) {
+        module.exports = { resolveVertical, getEdgeMidPoint, clampToSegment, getUseEdgeDrawSegments, resolveUseSign, resolveJumpStyle, jumpDrawProgram };
+        return;
+    }
+
     const config = Object.assign(
         // defaults
-        { addPluginMissingLabel: true },
+        { addPluginMissingLabel: true, jumpStyle: 'arc' },
         // user settings
         Editor?.globalVars?.tam
     );
+
+    // Line-crossing jumps. draw.io's native line jumps are fully wired and on
+    // (Graph.lineJumpsEnabled), but only fire for an edge whose `jumpStyle` is
+    // set — the default is 'none', so nothing ever jumps. Default it to an arc
+    // for TAM channels only (non-TAM edges are left untouched) so a channel
+    // crossing another line bumps over it. Jumps apply only
+    // against earlier-drawn edges, so only the top line bumps (no double bumps).
+    // Explicit per-edge jumpStyle (incl. 'none' to opt out) is kept; set
+    // Editor.globalVars.tam.jumpStyle='none' to disable globally.
+    const cfgJumpStyle = config.jumpStyle;
+    const graphGetCellStyle = ui.editor.graph.getCellStyle;
+    ui.editor.graph.getCellStyle = function (cell) {
+        const style = graphGetCellStyle.apply(this, arguments);
+        if (resolveJumpStyle(style, cell && this.model.isEdge(cell), cfgJumpStyle)) {
+            style.jumpStyle = cfgJumpStyle;
+            if (config.jumpSize != null) style.jumpSize = config.jumpSize;
+        }
+        return style;
+    };
 
     const tamConstants = {
         UP: 'up',
@@ -19,32 +46,6 @@ Draw.loadPlugin(function (ui) {
         DIRECTION_BOTH: 'both',
         NONE: 'none',
     };
-
-    const rotatePosition = {
-        [tamConstants.UP]: tamConstants.LEFT,
-        [tamConstants.DOWN]: tamConstants.RIGHT,
-        [tamConstants.LEFT]: tamConstants.UP,
-        [tamConstants.RIGHT]: tamConstants.DOWN
-    };
-
-    const rotateDirection = {
-        [tamConstants.DIRECTION_NORTH]: tamConstants.DIRECTION_EAST,
-        [tamConstants.DIRECTION_SOUTH]: tamConstants.DIRECTION_WEST,
-        [tamConstants.DIRECTION_EAST]: tamConstants.DIRECTION_NORTH,
-        [tamConstants.DIRECTION_WEST]: tamConstants.DIRECTION_SOUTH,
-        [tamConstants.DIRECTION_BOTH]: tamConstants.DIRECTION_BOTH,
-        [tamConstants.NONE]: tamConstants.NONE,
-
-    };
-
-    const flipDirection = {
-        [tamConstants.DIRECTION_NORTH]: tamConstants.DIRECTION_SOUTH,
-        [tamConstants.DIRECTION_SOUTH]: tamConstants.DIRECTION_NORTH,
-        [tamConstants.DIRECTION_EAST]: tamConstants.DIRECTION_WEST,
-        [tamConstants.DIRECTION_WEST]: tamConstants.DIRECTION_EAST,
-        [tamConstants.DIRECTION_BOTH]: tamConstants.DIRECTION_BOTH,
-        [tamConstants.NONE]: tamConstants.NONE,
-    }
 
     if (!document.getElementById('tam-animation-styles')) {
         const tamStyle = document.createElement('style');
@@ -412,15 +413,32 @@ Draw.loadPlugin(function (ui) {
             c.setShadow(false);
 
             if (pts.length < 2) { return; }
-            const isVertical = mxUtils.getValue(this.style, 'vertical', false);
+            const isVertical = resolveVertical(this.style, pts);
+            // 'auto' channels derive sign position/direction from the segment just like L-shapes,
+            // but at any point count (incl. a straight 2-point run), not only routed >2-point ones.
+            const autoOrient = isVertical !== 'both' && mxUtils.getValue(this.style, 'vertical', false) === 'auto';
 
             const prev = c.pointerEventsValue;
             c.pointerEventsValue = 'stroke';
 
+            const curved = this.style && this.style[mxConstants.STYLE_CURVED] === '1';
+            const routed = this.state && this.state.routedPoints;
+            // When jumps are active draw.io populates routedPoints for the whole
+            // edge and its paintLine redraws from those, mangling our split
+            // segments — so paint the polyline (and bumps) ourselves instead.
+            const usePainter = !curved && this.style != null && routed &&
+                routed.length > 0 && (typeof this.isLineJumpsPainted === 'function'
+                    ? this.isLineJumpsPainted() : !this.outline); // helper missing in older draw.io (e.g. 32.4.1)
+            const tr = (this.viewTranslate != null) ? this.viewTranslate :
+                (this.state && this.state.view.translate);
+            const jumps = usePainter
+                ? routed.filter(p => p.type === 1).map(p => ({ x: p.x + tr.x, y: p.y + tr.y }))
+                : [];
+
             const drawEdge = (drawPoints) => {
-                this.style && this.style[mxConstants.STYLE_CURVED] === '1' ?
-                    this.paintCurvedLine(c, drawPoints) :
-                    this.paintLine(c, drawPoints, this.isRounded);
+                if (curved) { this.paintCurvedLine(c, drawPoints); return; }
+                if (usePainter) { this.paintLineJumps(c, drawPoints, jumps); return; }
+                this.paintLine(c, drawPoints, this.isRounded);
             }
 
             const inBetween = (n, n1, n2) => {
@@ -441,10 +459,13 @@ Draw.loadPlugin(function (ui) {
                     p0 = Math.floor(pts.length / 2) - 1;
                     p1 = p0 + 1;
                 }
-                let midPoint = getEdgeMidPoint(pts, isVertical);
-                vertLine = (pts.length === 2) ? isVertical : !isVertical;
+                let midPoint = getEdgeMidPoint(pts);
+                vertLine = (pts.length === 2 && isVertical !== 'both') ? !!isVertical : Math.abs(pts[p1].x - pts[p0].x) < Math.abs(pts[p1].y - pts[p0].y);
                 x = midPoint.x;
                 y = midPoint.y;
+                // A 2-point channel is drawn axis-aligned at pts[0] (see endPoint
+                // below), so snap the circle onto that line or offset boxes kink it.
+                if (pts.length === 2) { vertLine ? x = pts[0].x : y = pts[0].y; }
             } else {
                 //calculate on-the-line point
                 p0 = 0;
@@ -457,7 +478,7 @@ Draw.loadPlugin(function (ui) {
 
                     if (Math.abs(pts[i].x - pts[i + 1].x) <= 2 * circleRadius || isVertical && pts.length === 2) {
                         if (inBetween(Math.max(top + circleRadius, Math.min(top + cy, bottom - circleRadius)), pts[i].y, pts[i + 1].y)) {
-                            y = top + cy;
+                            y = clampToSegment(top + cy, pts[i].y, pts[i + 1].y, circleRadius);
                             x = pts[i].x;
                             p0 = i;
                             p1 = i + 1;
@@ -471,7 +492,7 @@ Draw.loadPlugin(function (ui) {
                     } else {
                         if (inBetween(Math.max(left + circleRadius, Math.min(left + cx, right - circleRadius)), pts[i].x, pts[i + 1].x)) {
                             y = pts[i].y;
-                            x = left + cx;
+                            x = clampToSegment(left + cx, pts[i].x, pts[i + 1].x, circleRadius);
                             p0 = i;
                             p1 = i + 1;
                             vertLine = false;
@@ -509,63 +530,44 @@ Draw.loadPlugin(function (ui) {
             pts1 = [cpt, ...pts.slice(p1, pts.length - 1), endPoint];
             drawEdge(pts1);
 
+            // Lines above are stroke-only for hit-testing; restore before the circle so a
+            // click anywhere inside it selects the channel, not just on its ring.
+            c.pointerEventsValue = prev;
+
             c.setStrokeWidth(strokeWidth * 2);
+            // Grow the drawn circle with thick lines so the ring doesn't fill it solid
+            // (the split points above keep circleRadius; the filled circle covers the rest).
+            const extra = Math.max(0, strokeWidth - 1);
+            const drawnRadius = circleRadius + extra;
             c.ellipse(
-                x - circleRadius,
-                y - circleRadius,
-                circleRadius * 2,
-                circleRadius * 2
+                x - drawnRadius,
+                y - drawnRadius,
+                drawnRadius * 2,
+                drawnRadius * 2
             );
-            // Adapt circle fill color to theme: white for light mode, black for dark mode
-            const isDarkMode = typeof Editor !== 'undefined' && Editor.darkMode;
+            // Fill with the page background so the circle reads as an outline. Newer draw.io
+            // adapts canvas colors to dark mode itself (c.adaptiveColors), turning white into the
+            // dark background; picking black there gets inverted to light grey. Older draw.io
+            // doesn't adapt, so choose by theme.
+            const isDarkMode = c.adaptiveColors == null && typeof Editor !== 'undefined' && Editor.darkMode;
             c.setFillColor(isDarkMode ? '#000000' : '#FFFFFF');
             c.fillAndStroke()
-
-            c.pointerEventsValue = prev;
 
             // Draw triangle
             let useSignPosition = mxUtils.getValue(this.style, 'useSignPosition', 'up');
             let useSignDirection = mxUtils.getValue(this.style, 'useSignDirection', 'none');
 
-            // For L-shapes (isVertical='both'), the user's chosen direction needs to be adapted
-            // to the current segment orientation. If they choose south (down), it should point
-            // down when on a vertical segment, but should point right when on a horizontal segment.
-            if (pts.length > 2 && isVertical === 'both' && useSignDirection !== 'none' && useSignDirection !== 'both') {
-                const isDirectionVertical = (useSignDirection === 'north' || useSignDirection === 'south');
-                const isSegmentVertical = vertLine;
-
-                // If direction orientation doesn't match segment orientation, rotate it
-                if (isDirectionVertical !== isSegmentVertical) {
-                    useSignDirection = rotateDirection[useSignDirection];
-                }
-            }
-
-            // Preserve logical direction of triangle, when curve is flipped
-            if (useSignDirection !== 'none' && lineDirectionCoefficient === -1) {
-                useSignDirection = flipDirection[useSignDirection];
-            }
-
-            // Adjust the location to the position of the circle
-            // For S-shapes: use original p0 % 2 === 0 logic (works correctly for alternating segments)
-            // For L-shapes (isVertical='both'): adjust position based on current segment orientation
-            if (pts.length > 2 && isVertical === 'both') {
-                // For vertical segments, position should be 'left' or 'right'
-                // For horizontal segments, position should be 'up' or 'down'
-                const basePosition = mxUtils.getValue(this.style, 'useSignPosition', 'up');
-                if (vertLine) {
-                    // Vertical segment - position should be horizontal (left/right)
-                    useSignPosition = (basePosition === 'up' || basePosition === 'left') ? 'left' : 'right';
-                } else {
-                    // Horizontal segment - position should be vertical (up/down)
-                    useSignPosition = (basePosition === 'up' || basePosition === 'left') ? 'up' : 'down';
-                }
-            } else if (pts.length > 2 && p0 % 2 === 0) {
-                useSignPosition = rotatePosition[useSignPosition];
-                useSignDirection = rotateDirection[useSignDirection];
-            }
+            const sign = resolveUseSign(
+                useSignPosition, useSignDirection, vertLine, lineDirectionCoefficient,
+                (isVertical === 'both' || autoOrient), pts.length > 2, p0 % 2 === 0
+            );
+            useSignPosition = sign.position;
+            useSignDirection = sign.direction;
 
             let dx, dy;
-            const distance = 20;
+            // Keep clear of the (grown) circle; the sign itself stays a fixed size
+            const distance = 20 + 2 * extra;
+            c.setStrokeWidth(Math.min(strokeWidth * 2, 2));
 
             switch (useSignPosition) {
                 case tamConstants.DOWN:
@@ -633,6 +635,47 @@ Draw.loadPlugin(function (ui) {
 
             (sourceMarker => typeof sourceMarker === 'function' && sourceMarker())(this.createMarker(c, pts, true));
             (targetMarker => typeof targetMarker === 'function' && targetMarker())(this.createMarker(c, pts, false));
+        }
+
+        // Paints a polyline with line-jumps (arc/sharp/line/gap, per jumpStyle) where
+        // crossing points (jumps, absolute coords) lie on it. Replaces the native
+        // paintLine for channels because that one redraws from the full edge's
+        // routedPoints. The per-jump branch mirrors draw.io's paintLine.
+        paintLineJumps(c, pts, jumps) {
+            // Older draw.io (e.g. 32.4.1) inlines this in paintLine instead of a helper
+            const size = (typeof this.getLineJumpSize === 'function') ? this.getLineJumpSize() :
+                (parseInt(mxUtils.getValue(this.style, 'jumpSize', Graph.defaultJumpSize)) - 2) / 2 + this.strokewidth;
+            const arcSize = mxUtils.getValue(this.style, mxConstants.STYLE_ARCSIZE, mxConstants.LINE_ARCSIZE) / 2;
+            const style = mxUtils.getValue(this.style, 'jumpStyle', 'none');
+            c.begin();
+            let moveTo = true;
+            for (const op of jumpDrawProgram(pts, jumps, size)) {
+                if (op.pts) {
+                    this.addPoints(c, op.pts, this.isRounded, arcSize, false, null, moveTo);
+                    moveTo = false;
+                    continue;
+                }
+                const { p0, p1, nx, ny } = op.bump;
+                let f = (Math.round(nx) < 0 || (Math.round(nx) === 0 && Math.round(ny) <= 0)) ? 1 : -1;
+                if (style === 'sharp') {
+                    c.lineTo(p0.x - ny * f, p0.y + nx * f);
+                    c.lineTo(p1.x - ny * f, p1.y + nx * f);
+                    c.lineTo(p1.x, p1.y);
+                } else if (style === 'line') {
+                    c.moveTo(p0.x + ny * f, p0.y - nx * f);
+                    c.lineTo(p0.x - ny * f, p0.y + nx * f);
+                    c.moveTo(p1.x - ny * f, p1.y + nx * f);
+                    c.lineTo(p1.x + ny * f, p1.y - nx * f);
+                    c.moveTo(p1.x, p1.y);
+                } else if (style === 'arc') {
+                    f *= 1.3;
+                    c.curveTo(p0.x - ny * f, p0.y + nx * f, p1.x - ny * f, p1.y + nx * f, p1.x, p1.y);
+                } else {
+                    // 'gap': leave a hole; the next run starts with a moveTo at p1
+                    moveTo = true;
+                }
+            }
+            c.stroke();
         }
     }
 
@@ -869,6 +912,27 @@ Draw.loadPlugin(function (ui) {
 
     ui.sidebar.setCurrentSearchEntryLibrary('tam', 'tamBlock');
     ui.sidebar.addPalette('tamBlock', 'TAM / Block', true, function (content) {
+        // useSignDirection=north: the R sign points from source to target, whichever way the channel is drawn.
+        const autoEdge = new mxCell('', new mxGeometry(0, 0, 160, 160), 'shape=useedge;vertical=auto;edgeStyle=orthogonalEdgeStyle;endArrow=none;useSignPosition=left;useSignDirection=north;');
+        autoEdge.geometry.setTerminalPoint(new mxPoint(0, 160), true);
+        autoEdge.geometry.setTerminalPoint(new mxPoint(160, 0), false);
+        autoEdge.geometry.relative = true;
+        autoEdge.edge = true;
+        const smartChannel = ui.sidebar.createEdgeTemplateFromCells([autoEdge], 160, 160, 'Auto-Orient Channel');
+        // Hover preview only: add the "AUTO" label so it matches the thumbnail. The label is not dropped into the diagram.
+        const autoLabel = new mxCell('AUTO', new mxGeometry(0, 0, 110, 44), 'text;html=1;align=left;verticalAlign=top;fontStyle=1;fontSize=32;strokeColor=none;fillColor=none;');
+        autoLabel.vertex = true;
+        const showTooltip = ui.sidebar.showTooltip;
+        ui.sidebar.showTooltip = function (elt, cells) {
+            if (elt === smartChannel && Array.isArray(cells)) arguments[1] = [autoEdge, autoLabel];
+            return showTooltip.apply(this, arguments);
+        };
+        // Hand-drawn thumbnail: L-channel with R direction sign + "AUTO" label,
+        // so the icon shows that the channel routes and orients itself. Hover preview still renders the real edge.
+        const smartIcon = new DOMParser().parseFromString('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2 30H8M16 30H25Q31 30 31 24V16"/><circle cx="12" cy="30" r="4"/><g fill="currentColor" stroke="none" font-family="Helvetica,Arial,sans-serif" font-weight="bold"><text x="1" y="10" font-size="11">AUTO</text><text x="6" y="23" font-size="8">R</text><path d="M13 17L18.5 20L13 23Z"/></g></svg>', 'image/svg+xml').documentElement;
+        const smartThumb = smartChannel.querySelector('svg');
+        if (smartThumb) smartThumb.replaceWith(smartIcon); else smartChannel.appendChild(smartIcon);
+        content.appendChild(smartChannel);
         content.appendChild(ui.sidebar.createEdgeTemplate('shape=useedge;vertical=true;edgeStyle=none;endArrow=none;useSignPosition=left;useSignDirection=south;', 0, 160, '', 'Vertical Channel'));
         content.appendChild(ui.sidebar.createEdgeTemplate('shape=useedge;endArrow=none;edgeStyle=none;useSignPosition=up;useSignDirection=east;', 160, 0, '', 'Horizontal Channel'));
         content.appendChild(ui.sidebar.createEdgeTemplate('rounded=1;shape=useedge;vertical=true;edgeStyle=elbowEdgeStyle;elbow=vertical;endArrow=none;useSignPosition=up;useSignDirection=east;', 70, 160, '', 'Vertical S-Channel'));
@@ -979,18 +1043,116 @@ Draw.loadPlugin(function (ui) {
 
     mxResources.parse('flipUse=Flip Use Direction');
 
-    function getEdgeMidPoint(pts, isVertical) {
-        let p0 = 0, p1 = 1;
-        let vertLine = (pts.length === 2) ? isVertical : !isVertical;
+    // Decide whether to inject a default jumpStyle. True only for TAM channels
+    // (`useedge`) that have no explicit jumpStyle and when jumps aren't globally
+    // disabled, so non-TAM edges keep draw.io's default rendering. Channels paint
+    // their own jumps in UseEdgeShape (see paintLineJumps), since draw.io's native
+    // paintLine can't follow the split-around-the-circle segments.
+    function resolveJumpStyle(styleObj, isEdge, cfgStyle) {
+        if (!isEdge || !cfgStyle || cfgStyle === 'none') return false;
+        if (styleObj == null || styleObj.jumpStyle != null) return false;
+        return styleObj.shape === 'useedge';
+    }
 
+    // Build the draw program for a polyline with 'arc' line-jumps at the given
+    // crossing points. Returns ordered ops: {pts:[...]} straight runs to stroke,
+    // {bump:{p0,p1,nx,ny}} arcs over a crossing. size = half the jump width.
+    // Pure (plain {x,y} points) so it unit-tests without a canvas. Mirrors the
+    // 'arc' branch of draw.io's mxConnector.prototype.paintLine.
+    function jumpDrawProgram(pts, jumps, size) {
+        const ops = [];
+        let buf = [pts[0]];
+        for (let i = 0; i < pts.length - 1; i++) {
+            const a = pts[i], b = pts[i + 1];
+            const len = Math.hypot(b.x - a.x, b.y - a.y);
+            if (len === 0) continue;
+            const ux = (b.x - a.x) / len, uy = (b.y - a.y) / len;
+            const hits = jumps
+                .map(j => ({ t: (j.x - a.x) * ux + (j.y - a.y) * uy,
+                             d: Math.abs((j.x - a.x) * uy - (j.y - a.y) * ux) }))
+                .filter(h => h.t > size && h.t < len - size && h.d < 1)
+                .sort((h1, h2) => h1.t - h2.t);
+            for (const h of hits) {
+                const cx = a.x + ux * h.t, cy = a.y + uy * h.t;
+                const nx = ux * size, ny = uy * size;
+                const p0 = { x: cx - nx, y: cy - ny };
+                const p1 = { x: cx + nx, y: cy + ny };
+                buf.push(p0);
+                ops.push({ pts: buf });
+                ops.push({ bump: { p0, p1, nx, ny } });
+                buf = [p1];
+            }
+            buf.push(b);
+        }
+        ops.push({ pts: buf });
+        return ops;
+    }
+
+    // Auto channel: resolve `vertical` from actual geometry when style says 'auto'.
+    // 2 points -> vertical when taller than wide; routed (3+ points) -> 'both' (L behavior).
+    function resolveVertical(style, pts) {
+        const v = mxUtils.getValue(style, 'vertical', false);
+        if (v !== 'auto') return v;
+        if (!pts || pts.length !== 2) return 'both';
+        const dx = Math.abs(pts[pts.length - 1].x - pts[0].x);
+        const dy = Math.abs(pts[pts.length - 1].y - pts[0].y);
+        return dy > dx;
+    }
+
+    // Midpoint of the segment the use-circle sits on. Orientation is read from the
+    // segment's own geometry by callers, so this stays correct for L/auto routes too.
+    function getEdgeMidPoint(pts) {
+        let p0 = 0, p1 = 1;
         if (pts.length > 2) {
             p0 = Math.floor(pts.length / 2) - 1;
             p1 = p0 + 1;
         }
+        return new mxPoint(
+            pts[p0].x + (pts[p1].x - pts[p0].x) / 2,
+            pts[p0].y + (pts[p1].y - pts[p0].y) / 2
+        );
+    }
 
-        let x = vertLine ? pts[p0].x : pts[p0].x + (pts[p1].x - pts[p0].x) / 2;
-        let y = vertLine ? pts[p0].y + (pts[p1].y - pts[p0].y) / 2 : pts[p0].y;
-        return new mxPoint(x, y);
+    // Keep a saved (dx/dy) circle position on the segment it was matched to. dx/dy are
+    // relative to the edge bounds, so after the route changes the raw value can fall
+    // past the segment's end. Falls back to the segment middle when it's shorter than the circle.
+    function clampToSegment(v, a, b, r) {
+        const lo = Math.min(a, b) + r, hi = Math.max(a, b) - r;
+        return lo <= hi ? Math.max(lo, Math.min(v, hi)) : (a + b) / 2;
+    }
+
+    // Pure: adapt the use-sign's position/direction to the segment it sits on.
+    // `adapt` is true for 'both'/L and 'auto' channels (orientation read from geometry);
+    // for those the sign follows the segment at any point count. `routed`/`p0IsEven`
+    // drive the legacy S-channel rotation used only when not adapting.
+    function resolveUseSign(position, direction, vertLine, lineDirectionCoefficient, adapt, routed, p0IsEven) {
+        const rotateDirection = { north: 'east', south: 'west', east: 'north', west: 'south', both: 'both', none: 'none' };
+        const flipDirection = { north: 'south', south: 'north', east: 'west', west: 'east', both: 'both', none: 'none' };
+        const rotatePosition = { up: 'left', down: 'right', left: 'up', right: 'down' };
+
+        if (adapt && direction !== 'none' && direction !== 'both') {
+            const isDirectionVertical = (direction === 'north' || direction === 'south');
+            if (isDirectionVertical !== vertLine) {
+                direction = rotateDirection[direction];
+            }
+        }
+
+        // Preserve logical direction when the segment runs the other way
+        if (direction !== 'none' && lineDirectionCoefficient === -1) {
+            direction = flipDirection[direction];
+        }
+
+        if (adapt) {
+            // Position perpendicular to the segment: vertical -> left/right, horizontal -> up/down
+            position = vertLine
+                ? ((position === 'up' || position === 'left') ? 'left' : 'right')
+                : ((position === 'up' || position === 'left') ? 'up' : 'down');
+        } else if (routed && p0IsEven) {
+            position = rotatePosition[position];
+            direction = rotateDirection[direction];
+        }
+
+        return { position, direction };
     }
 
 
@@ -999,7 +1161,7 @@ Draw.loadPlugin(function (ui) {
     // seg2 goes from just after circle to end.
     function getUseEdgeDrawSegments(pts, style) {
         if (!pts || pts.length < 2) return null;
-        const isVertical = mxUtils.getValue(style, 'vertical', false);
+        const isVertical = resolveVertical(style, pts);
         const circleRadius = 8;
         let p0 = 0, p1 = 1;
         let vertLine = isVertical;
@@ -1015,10 +1177,11 @@ Draw.loadPlugin(function (ui) {
                 p0 = Math.floor(pts.length / 2) - 1;
                 p1 = p0 + 1;
             }
-            const mid = getEdgeMidPoint(pts, isVertical);
-            vertLine = (pts.length === 2) ? isVertical : !isVertical;
+            const mid = getEdgeMidPoint(pts);
+            vertLine = (pts.length === 2 && isVertical !== 'both') ? !!isVertical : Math.abs(pts[p1].x - pts[p0].x) < Math.abs(pts[p1].y - pts[p0].y);
             x = mid.x;
             y = mid.y;
+            if (pts.length === 2) { vertLine ? x = pts[0].x : y = pts[0].y; }
         } else {
             p0 = 0; p1 = 1;
             const left = Math.min(...pts.map(o => o.x));
@@ -1028,12 +1191,12 @@ Draw.loadPlugin(function (ui) {
             for (let i = 0; i < pts.length - 1; i++) {
                 if (Math.abs(pts[i].x - pts[i + 1].x) <= 2 * circleRadius || isVertical && pts.length === 2) {
                     if (inBetween(Math.max(top + circleRadius, Math.min(top + cy, bottom - circleRadius)), pts[i].y, pts[i + 1].y)) {
-                        y = top + cy; x = pts[i].x; p0 = i; p1 = i + 1; vertLine = true;
+                        y = clampToSegment(top + cy, pts[i].y, pts[i + 1].y, circleRadius); x = pts[i].x; p0 = i; p1 = i + 1; vertLine = true;
                         if (Math.abs(pts[i].x - (left + cx)) <= 2 * circleRadius) break;
                     }
                 } else {
                     if (inBetween(Math.max(left + circleRadius, Math.min(left + cx, right - circleRadius)), pts[i].x, pts[i + 1].x)) {
-                        y = pts[i].y; x = left + cx; p0 = i; p1 = i + 1; vertLine = false;
+                        y = pts[i].y; x = clampToSegment(left + cx, pts[i].x, pts[i + 1].x, circleRadius); p0 = i; p1 = i + 1; vertLine = false;
                         if (Math.abs(pts[i].y - (top + cy)) <= 2 * circleRadius) break;
                     }
                 }
@@ -1393,10 +1556,9 @@ Draw.loadPlugin(function (ui) {
                 createHandle(state, ['dx', 'dy'], function (bounds) {
                     var dx = Math.max(0, Math.min(bounds.width, mxUtils.getValue(this.state.style, 'dx', 0)));
                     var dy = Math.max(0, Math.min(bounds.height, mxUtils.getValue(this.state.style, 'dy', 0)));
-                    let isVertical = mxUtils.getValue(this.state.style, 'vertical', false)
                     if (dx == 0 && dy == 0) {
                         //un initialize
-                        let midPoint = getEdgeMidPoint(state.absolutePoints, isVertical);
+                        let midPoint = getEdgeMidPoint(state.absolutePoints);
                         dx = midPoint.x - state.x;
                         dy = midPoint.y - state.y;
                     }
