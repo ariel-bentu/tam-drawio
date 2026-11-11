@@ -541,8 +541,11 @@ Draw.loadPlugin(function (ui) {
                 drawnRadius * 2,
                 drawnRadius * 2
             );
-            // Adapt circle fill color to theme: white for light mode, black for dark mode
-            const isDarkMode = typeof Editor !== 'undefined' && Editor.darkMode;
+            // Fill with the page background so the circle reads as an outline. Newer draw.io
+            // adapts canvas colors to dark mode itself (c.adaptiveColors), turning white into the
+            // dark background; picking black there gets inverted to light grey. Older draw.io
+            // doesn't adapt, so choose by theme.
+            const isDarkMode = c.adaptiveColors == null && typeof Editor !== 'undefined' && Editor.darkMode;
             c.setFillColor(isDarkMode ? '#000000' : '#FFFFFF');
             c.fillAndStroke()
 
