@@ -898,7 +898,7 @@ Draw.loadPlugin(function (ui) {
 
     ui.sidebar.setCurrentSearchEntryLibrary('tam', 'tamBlock');
     ui.sidebar.addPalette('tamBlock', 'TAM / Block', true, function (content) {
-        const smartChannel = ui.sidebar.createEdgeTemplate('shape=useedge;vertical=auto;edgeStyle=orthogonalEdgeStyle;endArrow=none;useSignPosition=left;useSignDirection=south;', 160, 160, '', 'Smart Channel');
+        const smartChannel = ui.sidebar.createEdgeTemplate('shape=useedge;vertical=auto;edgeStyle=orthogonalEdgeStyle;endArrow=none;useSignPosition=left;useSignDirection=south;', 160, 160, '', 'Auto Channel');
         // Hand-drawn thumbnail: L-channel + "AUTO" label,
         // so the icon shows that the channel routes and orients itself. Hover preview still renders the real edge.
         const smartIcon = new DOMParser().parseFromString('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2 29H8M16 29H25Q31 29 31 23V18"/><circle cx="12" cy="29" r="4"/><text x="1" y="14" font-family="Helvetica,Arial,sans-serif" font-size="11" font-weight="bold" fill="currentColor" stroke="none">AUTO</text></svg>', 'image/svg+xml').documentElement;
@@ -1060,7 +1060,7 @@ Draw.loadPlugin(function (ui) {
         return ops;
     }
 
-    // Smart channel: resolve `vertical` from actual geometry when style says 'auto'.
+    // Auto channel: resolve `vertical` from actual geometry when style says 'auto'.
     // 2 points -> vertical when taller than wide; routed (3+ points) -> 'both' (L behavior).
     function resolveVertical(style, pts) {
         const v = mxUtils.getValue(style, 'vertical', false);
