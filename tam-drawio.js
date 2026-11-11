@@ -458,7 +458,7 @@ Draw.loadPlugin(function (ui) {
                     p0 = Math.floor(pts.length / 2) - 1;
                     p1 = p0 + 1;
                 }
-                let midPoint = getEdgeMidPoint(pts, isVertical);
+                let midPoint = getEdgeMidPoint(pts);
                 vertLine = (pts.length === 2 && isVertical !== 'both') ? !!isVertical : Math.abs(pts[p1].x - pts[p0].x) < Math.abs(pts[p1].y - pts[p0].y);
                 x = midPoint.x;
                 y = midPoint.y;
@@ -625,23 +625,41 @@ Draw.loadPlugin(function (ui) {
             (targetMarker => typeof targetMarker === 'function' && targetMarker())(this.createMarker(c, pts, false));
         }
 
-        // Paints a polyline with 'arc' line-jumps where crossing points (jumps,
-        // absolute coords) lie on it. Replaces the native paintLine for channels
-        // because that one redraws from the full edge's routedPoints.
+        // Paints a polyline with line-jumps (arc/sharp/line/gap, per jumpStyle) where
+        // crossing points (jumps, absolute coords) lie on it. Replaces the native
+        // paintLine for channels because that one redraws from the full edge's
+        // routedPoints. The per-jump branch mirrors draw.io's paintLine.
         paintLineJumps(c, pts, jumps) {
             const size = this.getLineJumpSize();
             const arcSize = mxUtils.getValue(this.style, mxConstants.STYLE_ARCSIZE, mxConstants.LINE_ARCSIZE) / 2;
+            const style = mxUtils.getValue(this.style, 'jumpStyle', 'none');
             c.begin();
             let moveTo = true;
             for (const op of jumpDrawProgram(pts, jumps, size)) {
                 if (op.pts) {
                     this.addPoints(c, op.pts, this.isRounded, arcSize, false, null, moveTo);
-                } else {
-                    const { p0, p1, nx, ny } = op.bump;
-                    const f = ((Math.round(nx) < 0 || (Math.round(nx) === 0 && Math.round(ny) <= 0)) ? 1 : -1) * 1.3;
-                    c.curveTo(p0.x - ny * f, p0.y + nx * f, p1.x - ny * f, p1.y + nx * f, p1.x, p1.y);
+                    moveTo = false;
+                    continue;
                 }
-                moveTo = false;
+                const { p0, p1, nx, ny } = op.bump;
+                let f = (Math.round(nx) < 0 || (Math.round(nx) === 0 && Math.round(ny) <= 0)) ? 1 : -1;
+                if (style === 'sharp') {
+                    c.lineTo(p0.x - ny * f, p0.y + nx * f);
+                    c.lineTo(p1.x - ny * f, p1.y + nx * f);
+                    c.lineTo(p1.x, p1.y);
+                } else if (style === 'line') {
+                    c.moveTo(p0.x + ny * f, p0.y - nx * f);
+                    c.lineTo(p0.x - ny * f, p0.y + nx * f);
+                    c.moveTo(p1.x - ny * f, p1.y + nx * f);
+                    c.lineTo(p1.x + ny * f, p1.y - nx * f);
+                    c.moveTo(p1.x, p1.y);
+                } else if (style === 'arc') {
+                    f *= 1.3;
+                    c.curveTo(p0.x - ny * f, p0.y + nx * f, p1.x - ny * f, p1.y + nx * f, p1.x, p1.y);
+                } else {
+                    // 'gap': leave a hole; the next run starts with a moveTo at p1
+                    moveTo = true;
+                }
             }
             c.stroke();
         }
@@ -1124,7 +1142,7 @@ Draw.loadPlugin(function (ui) {
                 p0 = Math.floor(pts.length / 2) - 1;
                 p1 = p0 + 1;
             }
-            const mid = getEdgeMidPoint(pts, isVertical);
+            const mid = getEdgeMidPoint(pts);
             vertLine = (pts.length === 2 && isVertical !== 'both') ? !!isVertical : Math.abs(pts[p1].x - pts[p0].x) < Math.abs(pts[p1].y - pts[p0].y);
             x = mid.x;
             y = mid.y;
@@ -1503,10 +1521,9 @@ Draw.loadPlugin(function (ui) {
                 createHandle(state, ['dx', 'dy'], function (bounds) {
                     var dx = Math.max(0, Math.min(bounds.width, mxUtils.getValue(this.state.style, 'dx', 0)));
                     var dy = Math.max(0, Math.min(bounds.height, mxUtils.getValue(this.state.style, 'dy', 0)));
-                    let isVertical = resolveVertical(this.state.style, state.absolutePoints)
                     if (dx == 0 && dy == 0) {
                         //un initialize
-                        let midPoint = getEdgeMidPoint(state.absolutePoints, isVertical);
+                        let midPoint = getEdgeMidPoint(state.absolutePoints);
                         dx = midPoint.x - state.x;
                         dy = midPoint.y - state.y;
                     }
