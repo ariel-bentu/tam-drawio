@@ -389,12 +389,18 @@ Draw.loadPlugin(function (ui) {
                 return;
             }
             const isVertical = mxUtils.getValue(this.style, 'vertical', false);
+            // drawArrow expects top-to-bottom / left-to-right; a reversed edge would draw its arrows inverted.
+            // The two arrows are symmetric, so ordering the ends doesn't change the meaning.
+            let [p0, p1] = pts;
+            if (isVertical ? p0.y > p1.y : p0.x > p1.x) {
+                [p0, p1] = [p1, p0];
+            }
             if (isVertical) {
-                drawArrow(c, pts[0].x + 5, pts[0].y + 5, pts[1].x + 5, pts[1].y - 5, isVertical, false, true, false);
-                drawArrow(c, pts[0].x - 5, pts[0].y + 5, pts[1].x - 5, pts[1].y - 5, isVertical, true, false, true);
+                drawArrow(c, p0.x + 5, p0.y + 5, p1.x + 5, p1.y - 5, isVertical, false, true, false);
+                drawArrow(c, p0.x - 5, p0.y + 5, p1.x - 5, p1.y - 5, isVertical, true, false, true);
             } else {
-                drawArrow(c, pts[0].x + 5, pts[0].y - 5, pts[1].x - 5, pts[1].y - 5, isVertical, true, true, false);
-                drawArrow(c, pts[0].x + 5, pts[0].y + 5, pts[1].x - 5, pts[1].y + 5, isVertical, false, false, true);
+                drawArrow(c, p0.x + 5, p0.y - 5, p1.x - 5, p1.y - 5, isVertical, true, true, false);
+                drawArrow(c, p0.x + 5, p0.y + 5, p1.x - 5, p1.y + 5, isVertical, false, false, true);
             }
 
             (sourceMarker => typeof sourceMarker === 'function' && sourceMarker())(this.createMarker(c, pts, true));
